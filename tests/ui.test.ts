@@ -2080,7 +2080,7 @@ test("renderRunsBoard renders status sections in fixed order", () => {
   const cardLines = lines.filter((line) =>
     /^\[tool(?:Pending|Error|Success)Bg\]/.test(line),
   );
-  expect(cardLines).toHaveLength(16);
+  expect(cardLines).toHaveLength(24);
   expect(
     cardLines.every((line) =>
       /^\[tool(?:Pending|Error|Success)Bg\].*\[\/tool(?:Pending|Error|Success)Bg\]$/.test(
@@ -2089,16 +2089,16 @@ test("renderRunsBoard renders status sections in fixed order", () => {
     ),
   ).toBe(true);
   expect(headerLines[0]).toContain(
-    "[accent]⟳[/accent] [toolTitle]*reviewer*[/toolTitle] [dim][running][/dim] [muted]2 tools · 16% ctx ·",
+    "[accent]⟳[/accent] [toolTitle]*reviewer*[/toolTitle] [dim][running][/dim]",
   );
   expect(headerLines[1]).toContain(
-    "[error]✗[/error] [toolTitle]*test-runner*[/toolTitle] [dim][error][/dim] [muted]3 tools · 24% ctx · 2m 30s[/muted]",
+    "[error]✗[/error] [toolTitle]*test-runner*[/toolTitle] [dim][error][/dim]",
   );
   expect(headerLines[2]).toContain(
-    "[error]⊘[/error] [toolTitle]*scanner*[/toolTitle] [dim][cancelled][/dim] [muted]1 tool · --% ctx · 5.0s[/muted]",
+    "[error]⊘[/error] [toolTitle]*scanner*[/toolTitle] [dim][cancelled][/dim]",
   );
   expect(headerLines[3]).toContain(
-    "[success]✓[/success] [toolTitle]*builder*[/toolTitle] [accent]\x1b[3mable-falcon\x1b[23m[/accent] [dim][success][/dim] [muted]5 tools · 40% ctx · 4m 40s[/muted]",
+    "[success]✓[/success] [toolTitle]*builder*[/toolTitle] [accent]\x1b[3mable-falcon\x1b[23m[/accent] [dim][success][/dim]",
   );
   expect(text).toContain(
     "[toolSuccessBg]   [toolOutput]Built all the things successfully[/toolOutput]",
@@ -2217,7 +2217,7 @@ test("renderRunsBoard uses body source priority and fallback", () => {
   expect(text).toContain("[toolOutput]final output[/toolOutput]");
   expect(text).not.toContain("[toolOutput]error text[/toolOutput]");
   expect(text).toContain("[toolOutput]error only[/toolOutput]");
-  expect(text).toContain("[toolOutput]preview only[/toolOutput]");
+  expect(text).toContain("[toolOutput]Task: preview only[/toolOutput]");
   expect(text).toContain("[muted](no output)[/muted]");
 });
 
@@ -2238,8 +2238,8 @@ test("abridged status cards without footer keep existing line output", () => {
   const cardLines = lines.filter((line) =>
     /^\[tool(Pending|Error|Success)Bg\]/.test(line),
   );
-  expect(cardLines).toHaveLength(4);
-  expect(text).toContain("[muted](no output)[/muted]");
+  expect(cardLines).toHaveLength(5);
+  expect(text).toContain("[toolOutput]Waiting for activity…[/toolOutput]");
 });
 
 test("abridged progress job card with modelDisplay renders dim model footer", () => {
@@ -2303,7 +2303,7 @@ test("abridged progress job card with modelDisplay and zero tool count preserves
   const rendered = renderRunsBoard([state], fakeTheme as never);
   const text = renderToString(rendered);
   expect(text).toContain("[dim]provider/model:fast[/dim]");
-  expect(text).toContain("[muted](no output)[/muted]");
+  expect(text).toContain("[toolOutput]Waiting for activity…[/toolOutput]");
 });
 
 test("abridged progress job card with modelDisplay and long body preview truncates and preserves footer", () => {
@@ -2313,7 +2313,7 @@ test("abridged progress job card with modelDisplay and long body preview truncat
     requestId: "r1",
     agent: "verbose",
     taskPreview: "",
-    status: "running",
+    status: "success",
     startTime: now - 10000,
     toolCount: 1,
     finalOutput: longBody,
@@ -2362,7 +2362,7 @@ test("abridged progress job card with undefined modelDisplay excludes footer", (
   const fakeTheme = createDefaultFakeTheme();
   const rendered = renderRunsBoard([state], fakeTheme as never);
   const text = renderToString(rendered);
-  expect(text).toContain("[muted](no output)[/muted]");
+  expect(text).toContain("[toolOutput]Waiting for activity…[/toolOutput]");
   const dimParts = text.match(/\[dim\]([^[]+)\[\/dim\]/g) ?? [];
   const modelFooter = dimParts.filter((p) => p.includes("model"));
   expect(modelFooter).toHaveLength(0);
@@ -2585,7 +2585,7 @@ test("empty footer text does not render a blank footer line on status card", () 
   const cardLines = lines.filter((line) =>
     /^\[tool(?:Pending|Error|Success)Bg\]/.test(line),
   );
-  expect(cardLines).toHaveLength(6);
+  expect(cardLines).toHaveLength(8);
 });
 
 test("result detail shape compatible with preserved nested activity progress", async () => {
@@ -3340,7 +3340,7 @@ test("abridged job card with modelDisplay shows (no output) when all body source
   const fakeTheme = createDefaultFakeTheme();
   const rendered = renderRunsBoard([state], fakeTheme as never);
   const text = renderToString(rendered);
-  expect(text).toContain("[muted](no output)[/muted]");
+  expect(text).toContain("[toolOutput]Waiting for activity…[/toolOutput]");
 });
 
 test("completed result card footer is empty when model and usage all missing", () => {
@@ -3382,7 +3382,7 @@ test("completed result card footer is empty when model and usage all missing", (
   const cardLines = lines.filter((line) =>
     /^\[tool(?:Pending|Error|Success)Bg\]/.test(line),
   );
-  expect(cardLines).toHaveLength(6);
+  expect(cardLines).toHaveLength(8);
   expect(renderedText).not.toMatch(/\[dim\].*·.*\[\/dim\]/);
 });
 

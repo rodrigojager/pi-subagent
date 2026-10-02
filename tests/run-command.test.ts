@@ -540,7 +540,7 @@ exit 0
     throw new Error("progress request id missing");
   expect(details.requestId.length).toBeGreaterThan(0);
   expect(details.agent).toBe("hang");
-  expect(details.instanceName).toMatch(/^[a-z]+-[a-z]+$/);
+  expect(details.instanceName).toMatch(/^#[1-9]\d*$/);
   expect(Object.keys(details)).toEqual(["agent", "instanceName", "requestId"]);
   expect(messagesSentBeforeChildExit).toBe(1);
 });
@@ -1215,7 +1215,7 @@ exit 0
   expect(sentMessages[0]?.content).toBe("");
   expect(sentMessages[0]?.details).toMatchObject({
     agent: "hang",
-    instanceName: expect.stringMatching(/^[a-z]+-[a-z]+$/),
+    instanceName: expect.stringMatching(/^#[1-9]\d*$/),
     requestId: (sentMessages[0]?.details as { requestId?: string })?.requestId,
   });
   expect(sentMessages.at(-1)?.content).toBe("done");

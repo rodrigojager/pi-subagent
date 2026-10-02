@@ -131,7 +131,7 @@ wait $!
     makeBareCtx(cwd),
   );
   expect((result.content[0] as TextContent).text).toMatch(
-    /^Subagent hang [a-z]+-[a-z]+ started \(job: /,
+    /^Subagent hang #[1-9]\d* started \(job: /,
   );
   expect(sentMessages).toHaveLength(1);
   expect(sentMessages[0]?.customType).toBe("subagent-progress");
@@ -1734,7 +1734,7 @@ exit 0
   expect(details.results[0]?.usage.input).toBe(10);
   expect(details.results[0]?.finalOutput).toBe("Outcome: hello");
   expect(details.results[0]?.messages).toBeUndefined();
-  expect(details.results[0]?.instanceName).toMatch(/^[a-z]+-[a-z]+$/);
+  expect(details.results[0]?.instanceName).toMatch(/^#[1-9]\d*$/);
   expect(details.results[0]?.usage.contextWindowTokens).toBe(128000);
   expect(details.results[0]?.model).toBe("off");
   const sentMessages2: SendMessageArg[] = [];
@@ -1752,7 +1752,7 @@ exit 0
   await waitForSentMessageCount(sentMessages2, 2);
   const debugDetails = sentMessages2.at(-1)?.details as SubagentDetails;
   expect(debugDetails.results[0]?.messages).toHaveLength(1);
-  expect(debugDetails.results[0]?.instanceName).toMatch(/^[a-z]+-[a-z]+$/);
+  expect(debugDetails.results[0]?.instanceName).toMatch(/^#[1-9]\d*$/);
 });
 
 test("subagent tool leaves context window unknown for unknown metadata", async () => {

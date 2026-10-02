@@ -5,13 +5,16 @@ import {
   Markdown,
   type MarkdownTheme,
   Text,
+  truncateToWidth,
 } from "@earendil-works/pi-tui";
 import type { AgentScope } from "../agent/agents.js";
 import {
   formatContextPercent,
   formatElapsed,
+  renderToolActivityForDisplay,
 } from "../progress/progress-format.js";
 import {
+  makeTaskPreview,
   type ProgressStatus,
   STATUS_BG,
   STATUS_COLOR,
@@ -59,6 +62,8 @@ export function formatSubagentTitle(
 ): string {
   const agentSegment = theme.fg("toolTitle", theme.bold(agent));
   if (!instanceName) return agentSegment;
+  if (/^#\d+$/.test(instanceName))
+    return `${agentSegment} ${theme.fg("muted", instanceName)}`;
   return `${agentSegment} ${theme.fg("accent", italicText(instanceName, theme))}`;
 }
 
@@ -250,6 +255,7 @@ export function renderSubagentResult(
       status: resultStatus,
       title,
       variant: "full",
+      task: makeTaskPreview(r.task),
       metadata,
       body: bodyText,
       footer: usageStr,
@@ -265,6 +271,7 @@ type StatusCardOptions = {
   title: string;
   variant: StatusCardVariant;
   metadata?: string;
+  task?: string;
   body?: string;
   footer?: string;
 };
@@ -281,11 +288,21 @@ function renderStatusCard(
     STATUS_ICON[options.status],
   );
   const status = theme.fg("dim", `[${options.status}]`);
-  const metadata = options.metadata
-    ? ` ${theme.fg("muted", options.metadata)}`
-    : "";
-  box.addChild(new Text(`${icon} ${options.title} ${status}${metadata}`, 0, 0));
+  box.addChild(new Text(`${icon} ${options.title} ${status}`, 0, 0));
+  if (options.task)
+    box.addChild(
+      new Text(
+        theme.fg(
+          "toolOutput",
+          `Task: ${truncateToWidth(options.task, BODY_PREVIEW_MAX)}`,
+        ),
+        2,
+        0,
+      ),
+    );
   box.addChild(makeStatusCardBody(options, theme));
+  if (options.metadata)
+    box.addChild(new Text(theme.fg("muted", options.metadata), 0, 0));
   if (options.footer)
     box.addChild(new Text(theme.fg("dim", options.footer), 0, 0));
   return box;
@@ -313,14 +330,6 @@ function makeStatusCardBody(
 
 const BODY_PREVIEW_MAX = 120;
 
-function selectRunsBoardBody(state: SubagentProgressState): string {
-  return (
-    [state.finalOutput, state.errorText, state.taskPreview].find(
-      (c): c is string => typeof c === "string" && c.trim().length > 0,
-    ) ?? ""
-  );
-}
-
 function formatProgressMetadata(
   toolCount: number,
   ctxPercent: string,
@@ -333,6 +342,7 @@ function formatProgressMetadata(
 function renderJobCard(
   state: SubagentProgressState,
   theme: SubagentTheme,
+  width: number,
 ): Box {
   const title = formatSubagentTitle(state.agent, state.instanceName, theme);
   const elapsed = formatElapsed(
@@ -340,7 +350,13 @@ function renderJobCard(
   );
   const ctxPercent = formatContextPercent(state);
   const metadata = formatProgressMetadata(state.toolCount, ctxPercent, elapsed);
-  const bodyText = selectRunsBoardBody(state);
+  const bodyText =
+    state.status === "running"
+      ? renderToolActivityForDisplay(
+          state.activeToolActivity,
+          Math.max(0, width - 8),
+        ) || (state.toolCount === 0 ? "Waiting for activity…" : "Working…")
+      : state.finalOutput?.trim() || state.errorText?.trim() || "";
   const preview =
     bodyText.length > BODY_PREVIEW_MAX
       ? `${bodyText.slice(0, BODY_PREVIEW_MAX - 1)}…`
@@ -350,6 +366,7 @@ function renderJobCard(
     title,
     variant: "abridged",
     metadata,
+    task: state.taskPreview,
     body: preview,
   };
   if (state.modelDisplay) options.footer = state.modelDisplay;
@@ -398,7 +415,7 @@ export function renderRunsBoard(
     const ruler = "─".repeat(Math.max(0, width - sectionHeader.length - 1));
     box.addChild(new Text(theme.fg("dim", `${sectionHeader} ${ruler}`), 0, 0));
     for (const state of sectionStates)
-      box.addChild(renderJobCard(state, theme));
+      box.addChild(renderJobCard(state, theme, width));
   };
   for (const [label, status] of BOARD_SECTIONS)
     addSection(label, grouped.get(status) ?? []);

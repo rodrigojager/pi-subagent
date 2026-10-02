@@ -1,4 +1,39 @@
-# Subagents for pi
+# Subagents for Pi — Rodrigo UI fork
+
+This is Rodrigo's presentation fork of [mystilleef/pi-subagent](https://github.com/mystilleef/pi-subagent), based on upstream 0.12.4. Original authorship, license, process execution, agent definitions, and nested delegation are preserved.
+
+Version **0.12.4-rodrigo.1** makes delegated work easier to follow:
+
+- Numbered run labels (`review #1`, `build #2`) replace random adjective/noun nicknames. Numbers increase within each Pi process; job UUIDs remain the cancellation identifiers.
+- The delegated task appears in compact cards, before live tool activity. Expand a live card to read its full normalized task.
+- Tool counts, context usage, elapsed time, and model appear below the task and activity.
+- `/jobs` shows each task and its current activity; completed runs retain their task beside the outcome.
+- Existing records with older instance names still render normally.
+
+```text
+⟳ review #1 [running]
+  Task: Check the video export path
+  → read: source/exporter.cpp
+3 tools · 18% ctx · 32.0s
+openai-codex ･ gpt-6-luna ･ high
+```
+
+The example illustrates the layout; runtime values come from the child process.
+
+![Task and activity cards rendered with example data](assets/ui-preview.png)
+
+Install this fork through GitHub:
+
+```sh
+pi remove npm:@mystilleef/pi-subagent
+pi install https://github.com/rodrigojager/pi-subagent
+```
+
+Keep only one subagent implementation configured, then use `/reload` in an existing Pi session. Future updates: `pi update https://github.com/rodrigojager/pi-subagent`.
+
+The fork is distributed through GitHub releases and source installation. The original npm package continues to point to upstream.
+
+---
 
 Designed to orchestrate agents for the
 [SPAE framework](https://github.com/mystilleef/spae-framework). Agents
@@ -9,16 +44,16 @@ in
 
 ## Installation
 
-**Install from `npm`:**
+**Install from GitHub:**
 
 ```sh
-pi install npm:@mystilleef/pi-subagent
+pi install https://github.com/rodrigojager/pi-subagent
 ```
 
 **Try temporarily without installing:**
 
 ```sh
-pi -e npm:@mystilleef/pi-subagent
+pi -e https://github.com/rodrigojager/pi-subagent
 ```
 
 ---

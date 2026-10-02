@@ -1,17 +1,17 @@
 {
   "name": "@mystilleef/pi-subagent",
-  "version": "0.12.4",
-  "description": "Pi subagent for the SPAE Framework",
+  "version": "0.12.4-rodrigo.1",
+  "description": "Pi subagents with numbered runs and task-first progress cards, based on the SPAE extension",
   "author": "Lateef Alabi-Oki <mystilleef@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mystilleef/pi-subagent.git"
+    "url": "git+https://github.com/rodrigojager/pi-subagent.git"
   },
   "bugs": {
-    "url": "https://github.com/mystilleef/pi-subagent/issues"
+    "url": "https://github.com/rodrigojager/pi-subagent/issues"
   },
-  "homepage": "https://github.com/mystilleef/pi-subagent#readme",
+  "homepage": "https://github.com/rodrigojager/pi-subagent#readme",
   "keywords": [
     "pi-package",
     "pi-extension",
@@ -35,13 +35,14 @@
   "files": [
     "src",
     "README.md",
-    "tsconfig.json"
+    "tsconfig.json",
+    "assets/ui-preview.png"
   ],
   "pi": {
     "extensions": [
       "./src/index.ts"
     ],
-    "video": "https://raw.githubusercontent.com/mystilleef/pi-subagent/main/assets/parallel-agents-demo.mp4"
+    "image": "https://raw.githubusercontent.com/rodrigojager/pi-subagent/main/assets/ui-preview.png"
   },
   "publishConfig": {
     "access": "public"
@@ -79,5 +80,6 @@
     "koffi": true,
     "protobufjs": true,
     "@google/genai": true
-  }
+  },
+  "private": true
 }

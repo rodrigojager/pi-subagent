@@ -2213,7 +2213,7 @@ test("renderSubagentProgress collapsed running colors targetless tool preview", 
   );
   expect(toolLine).not.toContain("<dim>:");
   expect(toolLine).not.toContain("</accent>:");
-  expect(text).not.toContain("do the thing");
+  expect(text).toContain("Task: do the thing");
 });
 
 test("renderSubagentProgress running omits unknown tool arguments", () => {

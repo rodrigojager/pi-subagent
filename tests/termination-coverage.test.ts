@@ -28,6 +28,7 @@ describe("termination.ts coverage gaps", () => {
       expect(supported).toBe(false);
     });
 
+    // These cases share PATH and one fixture executable; parallel chmod calls race.
     describe("PATH resolution via spawn", () => {
       let tempDir: string;
       let originalPath: string;
@@ -45,43 +46,53 @@ describe("termination.ts coverage gaps", () => {
         }
         fs.rmSync(tempDir, { recursive: true, force: true });
       });
-      test("resolves executable systemd-inhibit through command -v", async () => {
-        const scriptPath = path.join(tempDir, "systemd-inhibit");
-        fs.writeFileSync(scriptPath, "#!/bin/sh\necho ok\n");
-        fs.chmodSync(scriptPath, 0o755);
-        process.env.PATH = tempDir;
-        const adapter = makeHostSleepInhibitorAdapter({
-          platform: "linux",
-        });
-        const supported = await adapter.supported?.();
-        expect(supported).toBe(true);
-      });
-      test("returns false for non-executable file in PATH", async () => {
-        const scriptPath = path.join(tempDir, "systemd-inhibit");
-        fs.writeFileSync(scriptPath, "#!/bin/sh\necho ok\n");
-        fs.chmodSync(scriptPath, 0o644);
-        process.env.PATH = tempDir;
-        const adapter = makeHostSleepInhibitorAdapter({
-          platform: "linux",
-        });
-        const supported = await adapter.supported?.();
-        expect(supported).toBe(false);
-      });
-      test("returns false when PATH has no systemd-inhibit", async () => {
-        const emptyDir = fs.mkdtempSync(
-          path.join(os.tmpdir(), "pi-test-empty-"),
-        );
-        try {
-          process.env.PATH = emptyDir;
+      test.serial(
+        "resolves executable systemd-inhibit through command -v",
+        async () => {
+          const scriptPath = path.join(tempDir, "systemd-inhibit");
+          fs.writeFileSync(scriptPath, "#!/bin/sh\necho ok\n");
+          fs.chmodSync(scriptPath, 0o755);
+          process.env.PATH = tempDir;
           const adapter = makeHostSleepInhibitorAdapter({
             platform: "linux",
           });
           const supported = await adapter.supported?.();
-          expect(supported).toBe(false);
-        } finally {
-          fs.rmSync(emptyDir, { recursive: true, force: true });
-        }
-      });
+          expect(supported).toBe(true);
+        },
+      );
+      test.serial(
+        "shell lookup reports an existing file without execute bits",
+        async () => {
+          const scriptPath = path.join(tempDir, "systemd-inhibit");
+          fs.writeFileSync(scriptPath, "#!/bin/sh\necho ok\n");
+          fs.chmodSync(scriptPath, 0o644);
+          process.env.PATH = tempDir;
+          const adapter = makeHostSleepInhibitorAdapter({
+            platform: "linux",
+          });
+          const supported = await adapter.supported?.();
+          // command -v reports presence, not whether a later exec will succeed.
+          expect(supported).toBe(true);
+        },
+      );
+      test.serial(
+        "returns false when PATH has no systemd-inhibit",
+        async () => {
+          const emptyDir = fs.mkdtempSync(
+            path.join(os.tmpdir(), "pi-test-empty-"),
+          );
+          try {
+            process.env.PATH = emptyDir;
+            const adapter = makeHostSleepInhibitorAdapter({
+              platform: "linux",
+            });
+            const supported = await adapter.supported?.();
+            expect(supported).toBe(false);
+          } finally {
+            fs.rmSync(emptyDir, { recursive: true, force: true });
+          }
+        },
+      );
     });
   });
 
