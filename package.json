@@ -41,6 +41,8 @@
     "scripts/import-agency-roles.ts",
     "docs/roles.md",
     "docs/roles-migration.md",
+    "docs/custom-roles.md",
+    "roles/custom",
     "skills"
   ],
   "pi": {

@@ -18,6 +18,8 @@ Consider failure modes and data consistency. Keep changes proportional to the ta
 
 Plain Markdown also works. The filename determines the ID; an optional metadata `id` must agree. `default` and `none` are reserved selection modes. Only the body enters the model prompt. Unsupported execution configuration in role metadata has no effect.
 
+Three optional [custom specialist roles](custom-roles.md) cover unexplained software failures, local environment setup, and technical troubleshooting knowledge. Their metadata and instructions distinguish them from overlapping Agency Agents roles. They are bundled as data and installed explicitly into a role catalog; no agent defaults or skills are changed.
+
 ## Invocation choices
 
 | Invocation role | Effective role |

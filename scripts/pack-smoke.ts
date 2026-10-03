@@ -20,6 +20,10 @@ const requiredFiles = [
   "scripts/import-agency-roles.ts",
   "docs/roles.md",
   "docs/roles-migration.md",
+  "docs/custom-roles.md",
+  "roles/custom/root-cause-debugger.md",
+  "roles/custom/local-environment-setup.md",
+  "roles/custom/technical-kb-curator.md",
   "skills/pi-subagent-usage/SKILL.md",
 ];
 const forbiddenPatterns = [
