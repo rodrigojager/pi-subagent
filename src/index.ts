@@ -8,6 +8,7 @@ import {
 } from "./agent/agent-cache.js";
 import { isDirectoryAsync } from "./agent/agents.js";
 import { cancelSubagentCommandHandler } from "./orchestration/cancel-command.js";
+import { registerDelegationBridge } from "./orchestration/delegation-bridge.js";
 import { jobsCommandHandler } from "./orchestration/jobs-command.js";
 import { renderSubagentResultMessage } from "./orchestration/run.js";
 import { runCommandHandler } from "./orchestration/run-command.js";
@@ -32,6 +33,7 @@ function normalizeWorkspaceRoot(cwd: string | undefined): string | undefined {
 }
 
 export default function registerSubagentExtension(pi: ExtensionAPI) {
+  registerDelegationBridge(pi);
   let activeWorkspaceRoot: string | undefined;
   const setActiveWorkspaceRoot = (
     cwd: string | undefined,

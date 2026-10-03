@@ -360,3 +360,11 @@ bun verify
 ```sh
 bun pack:smoke
 ```
+
+## Rodrigo integration update: v0.12.4-rodrigo.2
+
+Adds a public Pi event-bus adapter for [pi-agent-switcher](https://github.com/rodrigojager/pi-agent-switcher). It routes user delegation through the existing `startSubagentJob` path, preserving the same project-agent confirmation, background/nested execution, progress, cancellation, and result handling as `/run`.
+
+The `rodrigojager:pi-subagent:delegate:v1` channel accepts `{ agent, task, context, accept }`. `context` is the caller's current Pi extension context. The listener synchronously calls `accept(run)` with an async function. The caller invokes that function once and receives `{ ok, message }`. The handshake itself does not start work. Invalid or empty requests are ignored; no listener means the capability is unavailable. The event bus is local to the current Pi process; there is no additional model call, CLI process, or alternate execution engine for dispatch.
+
+This release adds `src/orchestration/delegation-bridge.ts`, its registration in `src/index.ts`, and six regression tests. Existing numbered progress cards from `v0.12.4-rodrigo.1` are retained.
