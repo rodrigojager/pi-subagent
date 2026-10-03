@@ -437,7 +437,9 @@ test("/run without args reports usage without starting a job", async () => {
     cwd,
     ui: { notify: (message: string) => notices.push(message) },
   } as unknown as ExtensionCommandContext);
-  expect(notices).toEqual(["Usage: /run <agent> [task]"]);
+  expect(notices).toEqual([
+    "Usage: /run <agent> [--role default|none|id] [task]",
+  ]);
   expect(listRunJobs()).toHaveLength(0);
 });
 
@@ -541,7 +543,12 @@ exit 0
   expect(details.requestId.length).toBeGreaterThan(0);
   expect(details.agent).toBe("hang");
   expect(details.instanceName).toMatch(/^#[1-9]\d*$/);
-  expect(Object.keys(details)).toEqual(["agent", "instanceName", "requestId"]);
+  expect(Object.keys(details)).toEqual([
+    "agent",
+    "instanceName",
+    "requestId",
+    "role",
+  ]);
   expect(messagesSentBeforeChildExit).toBe(1);
 });
 
@@ -634,7 +641,7 @@ exit 0
     expect(message.content).toBe("");
     expect(
       Object.keys((message.details as Record<string, unknown>) ?? {}),
-    ).toEqual(["agent", "instanceName", "requestId"]);
+    ).toEqual(["agent", "instanceName", "requestId", "role"]);
   }
   expect(sentMessages.at(-1)?.customType).toBe("subagent-result");
   const countAfterCompletion = sentMessages.length;
@@ -769,6 +776,7 @@ exit 0
     "agent",
     "instanceName",
     "requestId",
+    "role",
   ]);
   const requestId = progressDetails.requestId;
   if (!requestId) throw new Error("requestId missing");
@@ -1251,6 +1259,7 @@ exit 0
     "agent",
     "instanceName",
     "requestId",
+    "role",
   ]);
   const requestId = msgDetails["requestId"] as string;
   const state = getProgressState(requestId);

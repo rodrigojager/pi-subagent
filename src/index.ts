@@ -19,6 +19,8 @@ import {
 } from "./orchestration/subagent-orchestrator.js";
 import { renderSubagentCall, renderSubagentToolResult } from "./output/ui.js";
 import { renderSubagentProgress } from "./progress/progress.js";
+import { discoverRoles } from "./roles/discovery.js";
+import { registerRolesTool } from "./roles/tool.js";
 
 export { SubagentParams };
 
@@ -34,7 +36,9 @@ function normalizeWorkspaceRoot(cwd: string | undefined): string | undefined {
 
 export default function registerSubagentExtension(pi: ExtensionAPI) {
   registerDelegationBridge(pi);
+  registerRolesTool(pi);
   let activeWorkspaceRoot: string | undefined;
+  let projectTrusted = false;
   const setActiveWorkspaceRoot = (
     cwd: string | undefined,
     fallback?: string,
@@ -44,18 +48,41 @@ export default function registerSubagentExtension(pi: ExtensionAPI) {
   const getRunArgumentCompletions = async (prefix: string) => {
     if (!activeWorkspaceRoot) return [];
     if (!(await isDirectoryAsync(activeWorkspaceRoot))) return [];
+    const match = prefix.match(
+      /^(?:--debug\s+)?\S+\s+--role(?:=|\s+)([a-z0-9._-]*)$/,
+    );
+    if (match) {
+      const catalog = await discoverRoles({
+        cwd: activeWorkspaceRoot,
+        allowProject: projectTrusted,
+      });
+      return ["default", "none", ...catalog.roles.map((r) => r.id)]
+        .filter((id) => id.startsWith(match[1] ?? ""))
+        .map((id) => ({
+          value: prefix.slice(0, prefix.length - (match[1]?.length ?? 0)) + id,
+          label: id,
+          description:
+            catalog.roles.find((r) => r.id === id)?.description ??
+            (id === "default"
+              ? "Use this agent's configured role"
+              : "Ignore this agent's configured role"),
+        }));
+    }
     return getCachedAgentCompletions(prefix, activeWorkspaceRoot);
   };
   pi.on("resources_discover", (event, ctx) => {
+    projectTrusted = ctx.isProjectTrusted?.() ?? !ctx.hasUI;
     setActiveWorkspaceRoot(ctx.cwd, event.cwd);
   });
   pi.on("session_start", (_event, ctx) => {
+    projectTrusted = ctx.isProjectTrusted?.() ?? !ctx.hasUI;
     setActiveWorkspaceRoot(ctx.cwd);
   });
   pi.registerMessageRenderer("subagent-progress", renderSubagentProgress);
   pi.registerMessageRenderer("subagent-result", renderSubagentResultMessage);
   pi.registerCommand("run", {
-    description: "Run a subagent directly: /run <agent> [task]",
+    description:
+      "Run a subagent: /run [--debug] <agent> [--role default|none|id] [task]",
     getArgumentCompletions: getRunArgumentCompletions,
     handler: async (args, ctx) => {
       setActiveWorkspaceRoot(ctx.cwd);

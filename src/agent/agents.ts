@@ -2,6 +2,7 @@ import type { Dirent } from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import * as path from "node:path";
 import { getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
+import { declaredRole } from "../roles/request.js";
 import { isValidSamplingValue } from "../shared/sampling.js";
 
 export type AgentSource = "user" | "project";
@@ -20,6 +21,8 @@ const THINKING_LEVELS = [
 export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
 
 export interface AgentConfig {
+  role?: string | undefined;
+  roleDiagnostic?: string | undefined;
   name: string;
   description: string;
   context?: false | undefined;
@@ -195,6 +198,12 @@ function parseAgentConfig(
     model,
     provider,
     systemPrompt: body,
+    role: declaredRole(frontmatter["role"]),
+    ...(frontmatter["role"] != null &&
+    frontmatter["role"] !== "" &&
+    !declaredRole(frontmatter["role"])
+      ? { roleDiagnostic: "Invalid optional role ID; ignored" }
+      : {}),
     source,
     filePath,
     ...(rawContext === false && { context: false }),

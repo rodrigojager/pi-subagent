@@ -5,6 +5,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import {
   DELEGATION_CHANNEL,
+  ROLE_DELEGATION_CHANNEL,
   registerDelegationBridge,
 } from "../src/orchestration/delegation-bridge.js";
 import type { startSubagentJob } from "../src/orchestration/subagent-orchestrator.js";
@@ -20,8 +21,10 @@ function bridge(start: typeof startSubagentJob) {
   const pi = {
     events: {
       on(channel: string, callback: (data: unknown) => void) {
-        expect(channel).toBe(DELEGATION_CHANNEL);
-        listener = callback;
+        expect([DELEGATION_CHANNEL, ROLE_DELEGATION_CHANNEL]).toContain(
+          channel,
+        );
+        if (channel === DELEGATION_CHANNEL) listener = callback;
       },
     },
   } as unknown as ExtensionAPI;
@@ -121,4 +124,39 @@ describe("cross-extension delegation", () => {
     expect(accepted).toBe(false);
     registerDelegationBridge({} as ExtensionAPI);
   });
+});
+
+test("v2 carries invocation roles and accepted execution is idempotent", async () => {
+  const listeners = new Map<string, (data: unknown) => void>();
+  const pi = {
+    events: {
+      on: (channel: string, callback: (data: unknown) => void) =>
+        listeners.set(channel, callback),
+    },
+  } as unknown as ExtensionAPI;
+  let calls = 0;
+  registerDelegationBridge(pi, async (_pi, _ctx, params) => {
+    calls++;
+    expect(params.role).toBe("none");
+    return {
+      kind: "started",
+      requestId: "job",
+      instanceName: "#1",
+      makeDetails: details,
+    };
+  });
+  let run: (() => Promise<{ ok: boolean; message: string }>) | undefined;
+  listeners.get(ROLE_DELEGATION_CHANNEL)?.({
+    agent: "executor",
+    task: "task",
+    role: "none",
+    context: { cwd: "/fixture" },
+    accept: (accepted: typeof run) => {
+      run = accepted;
+    },
+  });
+  expect(calls).toBe(0);
+  if (!run) throw new Error("No v2 capability");
+  await Promise.all([run(), run()]);
+  expect(calls).toBe(1);
 });

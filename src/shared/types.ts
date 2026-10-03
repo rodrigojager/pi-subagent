@@ -1,6 +1,7 @@
 import type { Message } from "@earendil-works/pi-ai";
 import type { AgentScope } from "../agent/agents.js";
 import type { TerminationMetadata } from "../child/termination.js";
+import type { RoleMetadata } from "../roles/types.js";
 
 export const TOOL_RESULT_FAILED_MESSAGE = "Subagent tool result failed.";
 
@@ -36,6 +37,7 @@ export interface StreamingProgress {
 }
 
 export interface SingleResult {
+  role?: RoleMetadata | undefined;
   agent: string;
   instanceName?: string | undefined;
   agentSource: "user" | "project" | "unknown";

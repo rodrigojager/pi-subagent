@@ -39,6 +39,13 @@ import {
   sanitizeDetailsForDisplay,
   sanitizeResultDetails,
 } from "../progress/result-details.js";
+import {
+  discoverRoles,
+  normalizeRoleRequest,
+  type RoleResolution,
+  resolveRole,
+  roleMetadata,
+} from "../roles/index.js";
 import { generateSubagentInstanceName } from "../shared/instance-name.js";
 import { getSubagentDepth } from "../shared/invocation.js";
 import type {
@@ -62,6 +69,12 @@ const AgentScopeSchema = StringEnum(["user", "project", "both"] as const, {
 });
 
 export const SubagentParams = Type.Object({
+  role: Type.Optional(
+    Type.String({
+      description:
+        "Omitted/default uses this child's agent role; none disables it; a role ID overrides this invocation only. Never inherits the parent role.",
+    }),
+  ),
   agent: Type.String({
     description: "Name of the agent to invoke",
   }),
@@ -92,6 +105,7 @@ function isDebugDetailsAuthorized(debugRequested: boolean): boolean {
 }
 
 interface LifecycleContext {
+  role: RoleResolution;
   pi: ExtensionAPI;
   ctx: ExtensionContext;
   requestId: string;
@@ -291,7 +305,7 @@ async function runSubagentLifecycle(
       lc.parentModel,
       lc.parentThinking,
       lc.debug,
-      { registry: lc.registry },
+      { registry: lc.registry, role: lc.role },
     );
     if (outcome.kind === "aborted") {
       const details = lc.makeDetails([outcome.result]);
@@ -394,6 +408,7 @@ async function prepareSubagentJob(
   hostOnUpdate?: AgentToolUpdateCallback<SubagentDetails>,
 ): Promise<PrepareSubagentJobResult> {
   const agentScope: AgentScope = params.agentScope ?? "both";
+  normalizeRoleRequest(params.role);
   const discovery = await getCachedAgentDiscovery(ctx.cwd, agentScope);
   const agents = discovery.agents;
   const debug = isDebugDetailsAuthorized(params.debug === true);
@@ -414,6 +429,23 @@ async function prepareSubagentJob(
     );
     if (!confirmed) return { kind: "cancelled", makeDetails };
   }
+  const catalog = await discoverRoles({
+    cwd: ctx.cwd,
+    allowProject: ctx.isProjectTrusted?.() ?? !ctx.hasUI,
+  });
+  const role = resolveRole(catalog, requested.role, params.role);
+  if (
+    role.source === "project" &&
+    requested.source !== "project" &&
+    ctx.hasUI
+  ) {
+    const confirmed = await ctx.ui.confirm(
+      "Run project-local role?",
+      `Role: ${role.displayName}\nSource: ${catalog.projectRoot}\n\nProject roles are repo-controlled. Only continue for trusted repositories.`,
+    );
+    if (!confirmed) return { kind: "cancelled", makeDetails };
+  }
+  const metadata = roleMetadata(role);
   if (requested.source === "project") {
     const userAgents = await getCachedAgentDiscovery(ctx.cwd, "user");
     const hasUserCollision = userAgents.agents.some(
@@ -441,21 +473,22 @@ async function prepareSubagentJob(
     instanceName,
     controller,
     startedAt: Date.now(),
+    role: metadata,
   });
   const mergedSignal = hostSignal
     ? AbortSignal.any([hostSignal, job.controller.signal])
     : job.controller.signal;
   const makeStartedDetails: DetailsBuilder = (results, options) =>
     makeDetails(
-      results.map((result) => ({ ...result, instanceName })),
+      results.map((result) => ({ ...result, instanceName, role: metadata })),
       options,
     );
-  createProgressState(requestId, params.agent, task, instanceName);
+  createProgressState(requestId, params.agent, task, instanceName, metadata);
   pi.sendMessage({
     customType: "subagent-progress",
     content: "",
     display: true,
-    details: { agent: params.agent, instanceName, requestId },
+    details: { agent: params.agent, instanceName, requestId, role: metadata },
   });
   const requestProgressRender = createProgressRenderRequester(ctx, requestId);
   if (mergedSignal.aborted) {
@@ -467,6 +500,7 @@ async function prepareSubagentJob(
     kind: "ready",
     lc: {
       pi,
+      role,
       ctx,
       requestId,
       job,

@@ -16,6 +16,11 @@ const requiredFiles = [
   "README.md",
   "tsconfig.json",
   "src/index.ts",
+  "src/roles/index.ts",
+  "scripts/import-agency-roles.ts",
+  "docs/roles.md",
+  "docs/roles-migration.md",
+  "skills/pi-subagent-usage/SKILL.md",
 ];
 const forbiddenPatterns = [
   /^test\//,

@@ -2,6 +2,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentConfig } from "../agent/agents.js";
+import { composeRolePrompt } from "../roles/prompt.js";
+import type { RoleResolution } from "../roles/types.js";
 
 export async function writePromptToTempFile(
   agentName: string,
@@ -13,10 +15,15 @@ export async function writePromptToTempFile(
   const safeName = agentName.replace(/[^\w.-]+/g, "_");
   const filePath = path.join(tmpDir, `prompt-${safeName}.md`);
   // mkdtemp guarantees a unique directory per call; no concurrent writer can hold this path.
-  await fs.promises.writeFile(filePath, prompt, {
-    encoding: "utf-8",
-    mode: 0o600,
-  });
+  try {
+    await fs.promises.writeFile(filePath, prompt, {
+      encoding: "utf-8",
+      mode: 0o600,
+    });
+  } catch (error) {
+    await fs.promises.rm(tmpDir, { recursive: true, force: true });
+    throw error;
+  }
   return { dir: tmpDir, filePath };
 }
 
@@ -37,9 +44,11 @@ export async function cleanupTempPrompt(tmpPrompt: TempPrompt): Promise<void> {
 
 export function beginPromptSetup(
   agent: AgentConfig,
+  role?: RoleResolution,
 ): Promise<PromptSetupResult> {
-  if (!agent.systemPrompt.trim()) return Promise.resolve({ tmpPrompt: null });
-  return writePromptToTempFile(agent.name, agent.systemPrompt).then(
+  const prompt = composeRolePrompt(agent.systemPrompt, role);
+  if (!prompt.trim()) return Promise.resolve({ tmpPrompt: null });
+  return writePromptToTempFile(agent.name, prompt).then(
     (tmpPrompt) => ({ tmpPrompt }),
     (error: unknown) => ({ error }),
   );

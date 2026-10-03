@@ -40,6 +40,7 @@ export const STATUS_BG: Record<ProgressStatus, ThemeBg> = {
 };
 
 export interface SubagentProgressState {
+  role?: import("../roles/types.js").RoleMetadata | undefined;
   requestId: string;
   agent: string;
   instanceName?: string | undefined;
@@ -67,11 +68,13 @@ export function createProgressState(
   agent: string,
   task: string,
   instanceName?: string,
+  role?: import("../roles/types.js").RoleMetadata,
 ): void {
   store.set(requestId, {
     requestId,
     agent,
     instanceName,
+    ...(role ? { role } : {}),
     taskPreview: makeTaskPreview(task),
     status: "running",
     startTime: Date.now(),

@@ -4,6 +4,7 @@ import {
   formatSubagentResultForParent,
   summarizeFeedbackUiFinalOutput,
 } from "../output/summary.js";
+import { roleMetadata } from "../roles/resolver.js";
 import {
   type SingleResult,
   type StreamingProgress,
@@ -127,7 +128,8 @@ export function sanitizeResultDetails(
 ): SingleResult {
   const includeMessages =
     includeDebugMessages && (options?.includeMessages ?? true);
-  const { messages, termination, progress, stderr, usage, ...core } = result;
+  const { messages, termination, progress, stderr, usage, role, ...core } =
+    result;
   const { contextWindowTokens, ...usageBase } = usage;
   const sanitized: SingleResult = {
     ...core,
@@ -137,6 +139,13 @@ export function sanitizeResultDetails(
       ...(contextWindowTokens !== undefined && { contextWindowTokens }),
     },
   };
+  if (role) {
+    try {
+      sanitized.role = roleMetadata(role);
+    } catch {
+      /* Old or malformed metadata is not displayed. */
+    }
+  }
   const progressValue = sanitizeProgressObject(progress, includeDebugMessages);
   if (progressValue !== undefined) sanitized.progress = progressValue;
   if (includeMessages) {
@@ -201,6 +210,7 @@ export function patchProgressFromDetails(
   if (!current) return;
   const patch: Partial<SubagentProgressState> = {
     toolCount: current.toolCount + newToolCallIds.length,
+    ...(latestResult?.role ? { role: latestResult.role } : {}),
   };
   let nextActivity: ToolActivity | undefined;
   if (newToolCallIds.length > 0 && lastToolPreview) {

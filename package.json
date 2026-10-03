@@ -1,6 +1,6 @@
 {
   "name": "@mystilleef/pi-subagent",
-  "version": "0.12.4-rodrigo.2",
+  "version": "0.13.0-rodrigo.1",
   "description": "Pi subagents with numbered runs and task-first progress cards, based on the SPAE extension",
   "author": "Lateef Alabi-Oki <mystilleef@gmail.com>",
   "license": "MIT",
@@ -25,7 +25,8 @@
   "module": "src/index.ts",
   "main": "src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./roles": "./src/roles/index.ts"
   },
   "type": "module",
   "engines": {
@@ -36,13 +37,20 @@
     "src",
     "README.md",
     "tsconfig.json",
-    "assets/ui-preview.png"
+    "assets/ui-preview.png",
+    "scripts/import-agency-roles.ts",
+    "docs/roles.md",
+    "docs/roles-migration.md",
+    "skills"
   ],
   "pi": {
     "extensions": [
       "./src/index.ts"
     ],
-    "image": "https://raw.githubusercontent.com/rodrigojager/pi-subagent/main/assets/ui-preview.png"
+    "image": "https://raw.githubusercontent.com/rodrigojager/pi-subagent/main/assets/ui-preview.png",
+    "skills": [
+      "./skills"
+    ]
   },
   "publishConfig": {
     "access": "public"
@@ -55,7 +63,8 @@
     "check": "bun lint && bun typecheck",
     "verify": "bun migrate && bun check && bun coverage",
     "pack:smoke": "bun scripts/pack-smoke.ts",
-    "release": "sh -c 'npm version \"$1\" -m \"chore(release): %s\" && git push --follow-tags' --"
+    "release": "sh -c 'npm version \"$1\" -m \"chore(release): %s\" && git push --follow-tags' --",
+    "roles:import": "bun scripts/import-agency-roles.ts"
   },
   "peerDependencies": {
     "@earendil-works/pi-agent-core": "*",

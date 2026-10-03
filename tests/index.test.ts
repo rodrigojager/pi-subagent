@@ -192,7 +192,7 @@ describe("index.ts", () => {
       const { tool } = await setupTest();
       const runCommand = tool.registeredCommands.get("run");
       expect(runCommand?.description).toBe(
-        "Run a subagent directly: /run <agent> [task]",
+        "Run a subagent: /run [--debug] <agent> [--role default|none|id] [task]",
       );
     });
 
@@ -250,7 +250,9 @@ describe("index.ts", () => {
       } as unknown as ExtensionCommandContext;
       const runCommand = tool.registeredCommands.get("run");
       await runCommand?.handler?.("", ctx);
-      expect(notifications[0]).toBe("Usage: /run <agent> [task]");
+      expect(notifications[0]).toBe(
+        "Usage: /run <agent> [--role default|none|id] [task]",
+      );
     });
 
     test("updates workspace root from ctx.cwd before processing", async () => {
@@ -284,7 +286,9 @@ describe("index.ts", () => {
       } as unknown as ExtensionCommandContext;
       const runCommand = tool.registeredCommands.get("run");
       await runCommand?.handler?.("   ", ctx);
-      expect(notifications[0]).toBe("Usage: /run <agent> [task]");
+      expect(notifications[0]).toBe(
+        "Usage: /run <agent> [--role default|none|id] [task]",
+      );
     });
 
     test("notifies unknown agent when agent not found", async () => {

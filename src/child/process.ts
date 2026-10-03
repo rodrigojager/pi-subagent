@@ -8,6 +8,8 @@ import { type ChildProcess, spawn } from "node:child_process";
 import type { Message } from "@earendil-works/pi-ai";
 import type { AgentConfig, ThinkingLevel } from "../agent/agents.js";
 import { getFinalOutput } from "../output/ui.js";
+import { roleMetadata } from "../roles/resolver.js";
+import type { RoleResolution } from "../roles/types.js";
 import { getPiInvocation, getSubagentDepth } from "../shared/invocation.js";
 import {
   type OnUpdateCallback,
@@ -62,6 +64,7 @@ export { makeEmitUpdate } from "./streaming-progress.js";
 type SleepInhibitorAcquirer = (pid: number) => Promise<SleepInhibitorHandle>;
 
 type RunSingleAgentOptions = {
+  role?: RoleResolution | undefined;
   acquireSleepInhibitor?: SleepInhibitorAcquirer;
   getOrchestratorPid?: () => unknown;
   registry?: ModelRegistry | undefined;
@@ -349,7 +352,7 @@ export async function runSingleAgent(
   > = extensionNames
     ? resolveAgentExtensionPaths(defaultCwd, extensionNames)
     : Promise.resolve({ resolvedPaths: [] });
-  const promptSetupPromise = beginPromptSetup(agent);
+  const promptSetupPromise = beginPromptSetup(agent, options.role);
   const [resolvedSkills, resolvedExtensions, promptSetup] = await Promise.all([
     resolvedSkillsPromise,
     resolvedExtensionsPromise,
@@ -396,6 +399,7 @@ export async function runSingleAgent(
     wasAborted: false,
   };
   if (thinkingWarning) state.result.thinkingWarning = thinkingWarning;
+  if (options.role) state.result.role = roleMetadata(options.role);
   const tmpPrompt = promptSetup.tmpPrompt;
   const samplingEnv = buildSamplingEnv(agent);
   try {

@@ -22,6 +22,7 @@ import {
   type SubagentProgressState,
   type ThemeBg,
 } from "../progress/progress-state.js";
+import { formatRole } from "../roles/resolver.js";
 import type { SubagentDetails, UsageStats } from "../shared/types.js";
 import { hasSubagentFailed } from "../shared/utils.js";
 import {
@@ -256,6 +257,7 @@ export function renderSubagentResult(
       title,
       variant: "full",
       task: makeTaskPreview(r.task),
+      role: formatRole(r.role),
       metadata,
       body: bodyText,
       footer: usageStr,
@@ -267,6 +269,7 @@ export function renderSubagentResult(
 type StatusCardVariant = "full" | "abridged";
 
 type StatusCardOptions = {
+  role?: string;
   status: ProgressStatus;
   title: string;
   variant: StatusCardVariant;
@@ -300,6 +303,8 @@ function renderStatusCard(
         0,
       ),
     );
+  if (options.role)
+    box.addChild(new Text(theme.fg("muted", options.role), 2, 0));
   box.addChild(makeStatusCardBody(options, theme));
   if (options.metadata)
     box.addChild(new Text(theme.fg("muted", options.metadata), 0, 0));
@@ -367,6 +372,7 @@ function renderJobCard(
     variant: "abridged",
     metadata,
     task: state.taskPreview,
+    role: formatRole(state.role),
     body: preview,
   };
   if (state.modelDisplay) options.footer = state.modelDisplay;

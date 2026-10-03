@@ -1,4 +1,7 @@
+import type { RoleMetadata } from "../roles/types.js";
+
 export type RunJob = {
+  role?: RoleMetadata | undefined;
   requestId: string;
   agentName: string;
   instanceName: string;

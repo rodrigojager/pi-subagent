@@ -19,6 +19,7 @@
 import type { Component } from "@earendil-works/pi-tui";
 import { Box, Text, truncateToWidth } from "@earendil-works/pi-tui";
 import { formatSubagentTitle, type SubagentTheme } from "../output/ui.js";
+import { formatRole } from "../roles/resolver.js";
 import {
   formatHeaderStats,
   renderToolActivityForDisplay,
@@ -122,6 +123,19 @@ function renderProgressBox(
     ? state.taskPreview
     : truncateToWidth(state.taskPreview, Math.max(1, width - 10));
   box.addChild(new Text(theme.fg("toolOutput", `Task: ${task}`), 2, 0));
+  if (state.role)
+    box.addChild(new Text(theme.fg("muted", formatRole(state.role)), 2, 0));
+  if (options.expanded && state.role)
+    box.addChild(
+      new Text(
+        theme.fg(
+          "dim",
+          `Role ID: ${state.role.effectiveId ?? "none"} · Origin: ${state.role.origin}`,
+        ),
+        2,
+        0,
+      ),
+    );
   for (const line of makeProgressBody(state, theme, width)) box.addChild(line);
   box.addChild(new Text(theme.fg("muted", formatHeaderStats(state)), 0, 0));
   if (state.modelDisplay)
