@@ -6,7 +6,7 @@ These three roles supplement Agency Agents without changing its imported files. 
 | --- | --- | --- |
 | `root-cause-debugger` | An unexplained, disputed, intermittent, or unsuccessfully fixed software failure | `minimal-change-engineer` for an already-diagnosed patch; `incident-response-commander` for production response; `sre` for ongoing reliability |
 | `local-environment-setup` | Getting an existing checkout running on a local workstation | `devops-automator` for CI/CD and deployments; `platform-engineer` for shared platforms; `codebase-onboarding-engineer` for read-only orientation |
-| `technical-kb-curator` | Searching and maintaining evidenced technical troubleshooting records | `technical-writer` for general developer docs; `zk-steward` for personal linked notes; `support-responder` for customer service; `root-cause-debugger` for new diagnosis |
+| `technical-knowledge-base-curator` | Searching and maintaining evidenced technical troubleshooting records | `technical-writer` for general developer docs; `zk-steward` for personal linked notes; `support-responder` for customer service; `root-cause-debugger` for new diagnosis |
 
 ## Selection examples
 
@@ -20,10 +20,10 @@ These three roles supplement Agency Agents without changing its imported files. 
 | Installation fails with matching prerequisites due to a defect in the install script | `root-cause-debugger` | The command name alone does not determine the role |
 | Build a release pipeline and deploy to cloud | `devops-automator` | Delivery infrastructure |
 | Explain the startup call path without editing anything | `codebase-onboarding-engineer` | Read-only orientation |
-| Record a proven installation fix with versions and exact error text | `technical-kb-curator` | Reusable operational knowledge |
+| Record a proven installation fix with versions and exact error text | `technical-knowledge-base-curator` | Reusable operational knowledge |
 | Write the project's installation tutorial or API reference | `technical-writer` | Developer documentation |
 | Organize study notes as an interconnected knowledge network | `zk-steward` | Personal note methodology |
-| Search whether a known fix applies to this project's version | `technical-kb-curator` | Applicability of existing records |
+| Search whether a known fix applies to this project's version | `technical-knowledge-base-curator` | Applicability of existing records |
 | Coordinate an outage and mitigation while customers are affected | `incident-response-commander` | Incident command rather than a bounded diagnosis |
 
 An unknown cause is the debugger's defining trigger; a missing local prerequisite is the setup engineer's; reusable troubleshooting evidence is the curator's. Overlapping command names or file types are insufficient to select a role. Boundary tables are guidance, not automatic role switching or delegation.
@@ -36,7 +36,7 @@ For a user catalog, from the package/source root in PowerShell:
 
 ```powershell
 $catalogPath = Join-Path $env:USERPROFILE '.pi\agent\roles\custom'
-$approvedRoleIds = @('root-cause-debugger', 'local-environment-setup', 'technical-kb-curator')
+$approvedRoleIds = @('root-cause-debugger', 'local-environment-setup', 'technical-knowledge-base-curator')
 $catalogRoot = Split-Path $catalogPath -Parent
 $existingIds = if (Test-Path -LiteralPath $catalogRoot) {
     Get-ChildItem -LiteralPath $catalogRoot -Recurse -File -Filter '*.md' |
@@ -51,7 +51,7 @@ foreach ($approvedRoleId in $approvedRoleIds) {
 
 Use the actual agent directory if it differs from the default. For a trusted project, use `.pi/roles/custom` in that project instead. Do not place READMEs or migration notes inside a role catalog: plain Markdown files are also treated as roles.
 
-Inspect with `/roles root-cause` or `/role show`. In Pi default, select with `/role root-cause-debugger`, `/role local-environment-setup`, or `/role technical-kb-curator`. A named agent uses its configured role; return with `/agent reset` before selecting an independent base-conversation role. No defaults are assigned to existing agents.
+Inspect with `/roles root-cause` or `/role show`. In Pi default, select with `/role root-cause-debugger`, `/role local-environment-setup`, or `/role technical-knowledge-base-curator`. A named agent uses its configured role; return with `/agent reset` before selecting an independent base-conversation role. No defaults are assigned to existing agents.
 
 ## Scope and origin
 

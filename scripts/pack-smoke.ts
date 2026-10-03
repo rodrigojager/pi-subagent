@@ -23,7 +23,7 @@ const requiredFiles = [
   "docs/custom-roles.md",
   "roles/custom/root-cause-debugger.md",
   "roles/custom/local-environment-setup.md",
-  "roles/custom/technical-kb-curator.md",
+  "roles/custom/technical-knowledge-base-curator.md",
   "skills/pi-subagent-usage/SKILL.md",
 ];
 const forbiddenPatterns = [

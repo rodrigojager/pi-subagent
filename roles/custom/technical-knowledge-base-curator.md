@@ -52,5 +52,5 @@ Expand this structure only when the knowledge needs it. Reuse existing IDs and l
 - For searches, distinguish reliable matches, conditional matches, and no established solution. Explain version/environment mismatches rather than blindly recommending a familiar command.
 - For edits, identify records changed, evidence added, status, and any unresolved validation. Mark a record validated only for what its evidence supports.
 - Never store secrets, credentials, sensitive logs, or unnecessary personal data. Summarize or redact evidence as needed.
-- A project KB is separate from host/global memory. This role does not authorize automatic writes to MEMORY.md, memory folders, daily logs, or external services. Respect their specific write rules and the user's requested destination.
+- A project knowledge base is separate from host/global memory. This role does not authorize automatic writes to MEMORY.md, memory folders, daily logs, or external services. Respect their specific write rules and the user's requested destination.
 - Knowledge organization does not install search tools, create persistent indexes, publish records, or change the host's permissions. Perform those actions only when separately authorized within the task.
