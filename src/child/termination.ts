@@ -459,12 +459,17 @@ function sendTreeSignal(
     return;
   }
   if (signal === "SIGKILL") {
-    (options.runTaskkill ?? ((args) => Bun.spawnSync(["taskkill", ...args])))([
-      "/pid",
-      String(pid),
-      "/t",
-      "/f",
-    ]);
+    const result = (
+      options.runTaskkill ?? ((args) => Bun.spawnSync(["taskkill", ...args]))
+    )(["/pid", String(pid), "/t", "/f"]);
+    if (
+      result &&
+      typeof result === "object" &&
+      "exitCode" in result &&
+      result.exitCode !== 0
+    ) {
+      throw new Error(`taskkill exited with code ${String(result.exitCode)}`);
+    }
     markTreeKilled();
     return;
   }

@@ -1437,13 +1437,16 @@ describe("terminateChildProcess", () => {
     expect(metadata.escalated).toBe(false);
     expect(metadata.terminationSignal).toBe("SIGTERM");
   });
-  test("uses default runTaskkill for Windows SIGKILL tree escalation", async () => {
+  test("falls back when Windows taskkill exits nonzero", async () => {
     const child = makeChild({ pid: 99999 });
     const timers = makeTimers();
     const promise = terminateChildProcess(child as unknown as ChildProcess, {
       tree: true,
       platform: "win32",
       setTimeout: timers.setTimeout,
+      runTaskkill() {
+        return { exitCode: 1 };
+      },
     });
     expect(child.signals).toEqual(["SIGTERM"]);
     timers.timers[0]?.();
@@ -1451,7 +1454,7 @@ describe("terminateChildProcess", () => {
     child.emit("exit");
     const metadata = await promise;
     expect(metadata.escalated).toBe(true);
-    expect(metadata.fallbackCause).toBeDefined();
+    expect(metadata.fallbackCause).toBe("taskkill exited with code 1");
     expect(metadata.target).toBe("direct");
     expect(metadata.processTreeKilled).toBe(false);
     expect(metadata.terminationSignal).toBe("SIGKILL");
