@@ -7,6 +7,7 @@ import {
   resetAgentDiscoveryCache,
 } from "./agent/agent-cache.js";
 import { isDirectoryAsync } from "./agent/agents.js";
+import { registerMailboxEventBridge } from "./mailbox/event-bridge.js";
 import { cancelSubagentCommandHandler } from "./orchestration/cancel-command.js";
 import { registerDelegationBridge } from "./orchestration/delegation-bridge.js";
 import { jobsCommandHandler } from "./orchestration/jobs-command.js";
@@ -18,6 +19,7 @@ import {
   startSubagentJob,
 } from "./orchestration/subagent-orchestrator.js";
 import { renderSubagentCall, renderSubagentToolResult } from "./output/ui.js";
+import { registerBackgroundActivity } from "./progress/background-activity.js";
 import { renderSubagentProgress } from "./progress/progress.js";
 import { discoverRoles } from "./roles/discovery.js";
 import { registerRolesTool } from "./roles/tool.js";
@@ -35,6 +37,8 @@ function normalizeWorkspaceRoot(cwd: string | undefined): string | undefined {
 }
 
 export default function registerSubagentExtension(pi: ExtensionAPI) {
+  registerBackgroundActivity(pi);
+  registerMailboxEventBridge(pi);
   registerDelegationBridge(pi);
   registerRolesTool(pi);
   let activeWorkspaceRoot: string | undefined;

@@ -68,6 +68,7 @@ type RunSingleAgentOptions = {
   acquireSleepInhibitor?: SleepInhibitorAcquirer;
   getOrchestratorPid?: () => unknown;
   registry?: ModelRegistry | undefined;
+  piInvocation?: { command: string; args: string[] } | undefined;
 };
 
 export type RunSingleAgentResult =
@@ -420,7 +421,12 @@ export async function runSingleAgent(
           : undefined,
       samplingEnv,
     });
-    const invocation = getPiInvocation(args);
+    const invocation = options.piInvocation
+      ? {
+          command: options.piInvocation.command,
+          args: [...options.piInvocation.args, ...args],
+        }
+      : getPiInvocation(args);
     const terminateOptions = {
       tree: true,
       platform: process.platform,

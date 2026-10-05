@@ -16,13 +16,19 @@ import type {
 
 export type ThemeBg = "toolPendingBg" | "toolSuccessBg" | "toolErrorBg";
 
-export type ProgressStatus = "running" | "success" | "error" | "cancelled";
+export type ProgressStatus =
+  | "running"
+  | "success"
+  | "error"
+  | "cancelled"
+  | "unknown";
 
 export const STATUS_COLOR: Record<ProgressStatus, ThemeColor> = {
   success: "success",
   error: "error",
   cancelled: "error",
   running: "accent",
+  unknown: "accent",
 };
 
 export const STATUS_ICON: Record<ProgressStatus, string> = {
@@ -30,6 +36,7 @@ export const STATUS_ICON: Record<ProgressStatus, string> = {
   error: "✗",
   cancelled: "⊘",
   running: "⟳",
+  unknown: "?",
 };
 
 export const STATUS_BG: Record<ProgressStatus, ThemeBg> = {
@@ -37,6 +44,7 @@ export const STATUS_BG: Record<ProgressStatus, ThemeBg> = {
   error: "toolErrorBg",
   cancelled: "toolErrorBg",
   running: "toolPendingBg",
+  unknown: "toolPendingBg",
 };
 
 export interface SubagentProgressState {
@@ -46,6 +54,8 @@ export interface SubagentProgressState {
   instanceName?: string | undefined;
   taskPreview: string;
   status: ProgressStatus;
+  health?: "responsive" | "disconnected" | "suspected_stall";
+  jobHealth?: "responsive" | "suspected_stall";
   startTime: number;
   durationMs?: number | undefined;
   activeToolActivity?: ToolActivity | undefined;
@@ -157,6 +167,16 @@ export function cancelProgressState(requestId: string, reason?: string): void {
   storeTerminalProgressState(requestId, {
     status: "cancelled",
     errorText: reason ? normalizeTerminalSentence(reason) : undefined,
+  });
+}
+
+export function markUnknownProgressState(
+  requestId: string,
+  reason: string,
+): void {
+  storeTerminalProgressState(requestId, {
+    status: "unknown",
+    errorText: normalizeTerminalSentence(reason),
   });
 }
 

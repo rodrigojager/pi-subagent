@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import type { AgentToolUpdateCallback } from "@earendil-works/pi-agent-core";
 import { StringEnum } from "@earendil-works/pi-ai";
 import type {
@@ -11,7 +12,12 @@ import type {
   AgentScope,
   ThinkingLevel,
 } from "../agent/agents.js";
-import type { ModelRegistry as ChildModelRegistry } from "../child/model-resolution.js";
+import {
+  buildModelDisplay,
+  type ModelRegistry as ChildModelRegistry,
+  resolveEffectiveChildModelSettings,
+  resolveThinkingLevel,
+} from "../child/model-resolution.js";
 import { runSingleAgent } from "../child/process.js";
 import { deliverNotification } from "../notification/delivery.js";
 import {
@@ -23,12 +29,14 @@ import {
   formatSubagentFailureForParent,
   formatSubagentResultForParent,
 } from "../output/summary.js";
+import { refreshBackgroundActivity } from "../progress/background-activity.js";
 import {
   cancelProgressState,
   createProgressState,
   failProgressState,
   finalizeProgressState,
   getProgressState,
+  patchProgressState,
 } from "../progress/progress.js";
 import {
   createSubagentError,
@@ -47,7 +55,7 @@ import {
   roleMetadata,
 } from "../roles/index.js";
 import { generateSubagentInstanceName } from "../shared/instance-name.js";
-import { getSubagentDepth } from "../shared/invocation.js";
+import { getPiInvocation, getSubagentDepth } from "../shared/invocation.js";
 import type {
   OnUpdateCallback,
   SingleResult,
@@ -55,6 +63,7 @@ import type {
   SubagentToolResult,
 } from "../shared/types.js";
 import { hasSubagentFailed } from "../shared/utils.js";
+import { sendCompletionMessage } from "./completion-delivery.js";
 import {
   listRunJobs,
   type RunJob,
@@ -140,12 +149,28 @@ function createDetailsBuilder(
 function createProgressRenderRequester(
   ctx: ExtensionContext,
   requestId: string,
+  pi: ExtensionAPI,
 ): () => void {
   const progressRenderKey = `subagent-progress:${requestId}`;
   return () => {
+    publishBackgroundActivity(ctx, pi);
     ctx.ui?.setStatus?.(progressRenderKey, `${Date.now()}`);
     ctx.ui?.setStatus?.(progressRenderKey, undefined);
   };
+}
+
+function publishBackgroundActivity(
+  ctx: ExtensionContext,
+  pi: ExtensionAPI,
+): void {
+  const sessionId = ctx.sessionManager?.getSessionId?.();
+  const states = listRunJobs()
+    .filter((job) => job.sessionId === sessionId)
+    .flatMap((job) => {
+      const state = getProgressState(job.requestId);
+      return state ? [state] : [];
+    });
+  refreshBackgroundActivity(ctx, pi, states);
 }
 
 function cancelStartedJob(job: RunJob, reason: string): void {
@@ -154,16 +179,18 @@ function cancelStartedJob(job: RunJob, reason: string): void {
 }
 
 function sendSubagentResultMessage(
-  pi: ExtensionAPI,
+  lc: LifecycleContext,
   content: string,
   details: SubagentDetails,
 ): void {
-  pi.sendMessage({
-    customType: "subagent-result",
+  sendCompletionMessage(
+    lc.pi,
+    lc.ctx,
+    lc.job.sessionId ?? lc.ctx.sessionManager?.getSessionId?.() ?? "",
+    getSubagentDepth(),
     content,
-    display: true,
     details,
-  });
+  );
 }
 
 function deliverDesktopCompletionNotification(
@@ -210,15 +237,15 @@ function finishLifecycleFailure(
   if (lc.mergedSignal.aborted) {
     cancelProgressState(lc.requestId, lc.job.cancelReason ?? errorMessage);
     if (getSubagentDepth() > 0) {
-      sendSubagentResultMessage(lc.pi, "Canceled", displayDetails);
+      sendSubagentResultMessage(lc, "Canceled", displayDetails);
     }
     return createCompletedToolResult("Canceled", displayDetails);
   }
   failProgressState(lc.requestId, errorMessage);
-  lc.ctx.ui?.notify(errorMessage, "error");
+  lc.ctx.ui?.notify?.(errorMessage, "error");
   const latestResult = getLatestResult(details);
   const content = formatSubagentFailureForParent(errorMessage, latestResult);
-  sendSubagentResultMessage(lc.pi, content, displayDetails);
+  sendSubagentResultMessage(lc, content, displayDetails);
   return createCompletedToolResult(content, displayDetails);
 }
 
@@ -242,7 +269,7 @@ function finishLifecycleResult(
     getFeedbackSummaryText(toolResult),
     result.outcome,
   );
-  sendSubagentResultMessage(lc.pi, content, displayDetails);
+  sendSubagentResultMessage(lc, content, displayDetails);
   return toolResult;
 }
 
@@ -270,6 +297,7 @@ async function runSubagentLifecycle(
   const requestProgressRender = createProgressRenderRequester(
     lc.ctx,
     lc.requestId,
+    lc.pi,
   );
   let lastDeliveredFingerprint: string | undefined;
   const onUpdate: OnUpdateCallback = (result) => {
@@ -468,6 +496,7 @@ async function prepareSubagentJob(
   const instanceName = generateSubagentInstanceName();
   const controller = new AbortController();
   const job: RunJob = registerRunJob({
+    sessionId: ctx.sessionManager?.getSessionId?.(),
     requestId,
     agentName: params.agent,
     instanceName,
@@ -483,14 +512,32 @@ async function prepareSubagentJob(
       results.map((result) => ({ ...result, instanceName, role: metadata })),
       options,
     );
-  createProgressState(requestId, params.agent, task, instanceName, metadata);
+  createProgressState(requestId, requested.name, task, instanceName, metadata);
+  const effectiveModel = resolveEffectiveChildModelSettings(
+    requested,
+    parentModel,
+  );
+  const resolvedThinking = resolveThinkingLevel(
+    requested.thinking ?? parentThinking,
+    effectiveModel.provider,
+    effectiveModel.id,
+    { registry: ctx.modelRegistry },
+  );
+  patchProgressState(requestId, {
+    modelDisplay: buildModelDisplay(effectiveModel, resolvedThinking.level),
+  });
+  publishBackgroundActivity(ctx, pi);
   pi.sendMessage({
     customType: "subagent-progress",
     content: "",
     display: true,
     details: { agent: params.agent, instanceName, requestId, role: metadata },
   });
-  const requestProgressRender = createProgressRenderRequester(ctx, requestId);
+  const requestProgressRender = createProgressRenderRequester(
+    ctx,
+    requestId,
+    pi,
+  );
   if (mergedSignal.aborted) {
     cancelStartedJob(job, job.cancelReason ?? "Aborted");
     requestProgressRender();
@@ -540,6 +587,92 @@ export async function startSubagentJob(
   if (getSubagentDepth() > 0) {
     const result = await runSubagentLifecycle(lc);
     return { kind: "completed", result };
+  }
+  let durableStart:
+    | ((job: Record<string, unknown>, adapterPath: string) => Promise<unknown>)
+    | undefined;
+  pi.events?.emit("rodrigojager:pi-agent-mailbox:request:v1", {
+    context: ctx,
+    accept: (start: typeof durableStart) => {
+      durableStart = start;
+    },
+  });
+  if (durableStart) {
+    const requestedAgent = lc.agents.find(
+      (agent) => agent.name === lc.agentName,
+    );
+    if (!requestedAgent)
+      throw new Error(
+        `Subagent ${lc.agentName} disappeared during preparation`,
+      );
+    const sessionId = ctx.sessionManager?.getSessionId?.();
+    if (!sessionId) throw new Error("Mailbox start requires a Pi session ID");
+    const details = lc.makeDetails([]);
+    const job = {
+      jobId: lc.requestId,
+      coordinatorId: sessionId,
+      workflowId: sessionId,
+      depth: getSubagentDepth(),
+      cwd: ctx.cwd,
+      agent: requestedAgent,
+      task: lc.task,
+      role: lc.role,
+      agentScope: details.agentScope,
+      projectAgentsDir: details.projectAgentsDir,
+      parentModel: lc.parentModel,
+      parentThinking: lc.parentThinking,
+      debug: lc.debug,
+      instanceName,
+      piInvocation: getPiInvocation([]),
+    };
+    const adapterPath = fileURLToPath(
+      new URL("../mailbox/worker-adapter.ts", import.meta.url),
+    );
+    let cancelDelivered = false;
+    const requestCancel = async () => {
+      if (cancelDelivered) return;
+      let cancel: ((jobId: string) => Promise<unknown>) | undefined;
+      pi.events?.emit("rodrigojager:pi-agent-mailbox:cancel:v1", {
+        context: ctx,
+        sessionId,
+        accept: (handler: typeof cancel) => {
+          cancel = handler;
+        },
+      });
+      if (cancel) {
+        try {
+          await cancel(lc.requestId);
+          cancelDelivered = true;
+        } catch {
+          /* A later retry can reconcile an uncertain cancellation. */
+        }
+      }
+    };
+    lc.mergedSignal.addEventListener(
+      "abort",
+      () => {
+        void requestCancel();
+      },
+      { once: true },
+    );
+    try {
+      await durableStart(job, adapterPath);
+    } catch (error) {
+      // A lost start response is ambiguous. Never launch the same job locally.
+      failProgressState(
+        lc.requestId,
+        `Mailbox start uncertain: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      requestProgressRender();
+      throw error;
+    }
+    if (lc.mergedSignal.aborted) await requestCancel();
+    return {
+      kind: "started",
+      requestId: lc.requestId,
+      instanceName,
+      makeDetails: lc.makeDetails,
+    };
   }
   setImmediate(() => {
     if (lc.mergedSignal.aborted) {

@@ -4311,7 +4311,7 @@ test("status coloring remains unchanged with width-aware preview", () => {
   );
   expect(result).toBeDefined();
   const text = renderText(result);
-  expect(text).toContain("<accent>⟳</accent>");
+  expect(text).toMatch(/<accent>[\u2800-\u28ff]<\/accent>/);
   expect(text).toContain("<dim>[running]</dim>");
   expect(
     renderLines(result).every(

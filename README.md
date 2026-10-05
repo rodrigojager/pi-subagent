@@ -2,13 +2,16 @@
 
 This is Rodrigo's presentation fork of [mystilleef/pi-subagent](https://github.com/mystilleef/pi-subagent), based on upstream 0.12.4. Original authorship, license, process execution, agent definitions, and nested delegation are preserved.
 
-Version **0.12.4-rodrigo.1** makes delegated work easier to follow:
+Version **0.13.0-rodrigo.2** keeps delegated work visible and adds an optional durable execution adapter:
 
 - Numbered run labels (`review #1`, `build #2`) replace random adjective/noun nicknames. Numbers increase within each Pi process; job UUIDs remain the cancellation identifiers.
 - The delegated task appears in compact cards, before live tool activity. Expand a live card to read its full normalized task.
 - Tool counts, context usage, elapsed time, and model appear below the task and activity.
 - `/jobs` shows each task and its current activity; completed runs retain their task beside the outcome.
 - Existing records with older instance names still render normally.
+- With the compatible [Pi Agent Mailbox](https://github.com/rodrigojager/pi-agent-mailbox) extension loaded, root jobs run through its event-driven supervisor. Their terminal result reaches the originating session through its journal and replay. Nested children keep this extension's existing execution path. Without the mailbox, the original background path remains available.
+
+The mailbox's `/mailbox legacy` and `/mailbox durable` commands select the path for new jobs in the current branch. They do not move or cancel jobs already running. Closing an interface does not cancel a mailbox worker; `/cancel-subagent` remains the explicit cancellation command. Do not reload a Pi session while its current work is active just to activate this version.
 
 ```text
 ⟳ review #1 [running]

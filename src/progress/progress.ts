@@ -31,6 +31,7 @@ import {
   STATUS_ICON,
   type SubagentProgressState,
 } from "./progress-state.js";
+import { spinnerFrame } from "./spinner.js";
 
 export { makeToolPreview } from "../output/normalize.js";
 export {
@@ -116,7 +117,8 @@ function renderProgressBox(
 ): Box {
   const status = state.status;
   const title = formatSubagentTitle(state.agent, state.instanceName, theme);
-  const header = `${theme.fg(STATUS_COLOR[status], STATUS_ICON[status])} ${title} ${theme.fg("dim", `[${status}]`)}`;
+  const icon = status === "running" ? spinnerFrame() : STATUS_ICON[status];
+  const header = `${theme.fg(STATUS_COLOR[status], icon)} ${title} ${theme.fg("dim", `[${status}]`)}`;
   const box = new Box(1, 1, (line) => theme.bg(STATUS_BG[status], line));
   box.addChild(new Text(header, 0, 0));
   const task = options.expanded
@@ -149,6 +151,33 @@ function makeProgressBody(
   width: number,
 ): Text[] {
   if (state.status === "running") {
+    if (state.health === "disconnected")
+      return [
+        new Text(
+          theme.fg("dim", "Mailbox connection lost; reconnecting…"),
+          2,
+          0,
+        ),
+      ];
+    if (state.health === "suspected_stall")
+      return [
+        new Text(
+          theme.fg("dim", "Supervisor stopped sending heartbeats…"),
+          2,
+          0,
+        ),
+      ];
+    if (state.jobHealth === "suspected_stall")
+      return [
+        new Text(
+          theme.fg(
+            "dim",
+            "No subagent activity observed; execution may be stalled…",
+          ),
+          2,
+          0,
+        ),
+      ];
     const preview = renderToolActivityForDisplay(
       state.activeToolActivity,
       Math.max(0, width - 8),
@@ -161,7 +190,11 @@ function makeProgressBody(
         );
     return [new Text(activity, 2, 0)];
   }
-  if (state.status === "error" || state.status === "cancelled")
+  if (
+    state.status === "error" ||
+    state.status === "cancelled" ||
+    state.status === "unknown"
+  )
     return state.errorText
       ? [new Text(theme.fg("error", state.errorText), 2, 0)]
       : [];

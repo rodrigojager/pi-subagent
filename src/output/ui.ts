@@ -357,10 +357,17 @@ function renderJobCard(
   const metadata = formatProgressMetadata(state.toolCount, ctxPercent, elapsed);
   const bodyText =
     state.status === "running"
-      ? renderToolActivityForDisplay(
-          state.activeToolActivity,
-          Math.max(0, width - 8),
-        ) || (state.toolCount === 0 ? "Waiting for activity…" : "Working…")
+      ? state.health === "disconnected"
+        ? "Mailbox connection lost; reconnecting…"
+        : state.health === "suspected_stall"
+          ? "Supervisor stopped sending heartbeats…"
+          : state.jobHealth === "suspected_stall"
+            ? "No subagent activity observed; execution may be stalled…"
+            : renderToolActivityForDisplay(
+                state.activeToolActivity,
+                Math.max(0, width - 8),
+              ) ||
+              (state.toolCount === 0 ? "Waiting for activity…" : "Working…")
       : state.finalOutput?.trim() || state.errorText?.trim() || "";
   const preview =
     bodyText.length > BODY_PREVIEW_MAX
@@ -389,6 +396,7 @@ function sortByStartTimeDesc(
 /** Ordered section definitions: label → status filter for the runs board. */
 const BOARD_SECTIONS: [string, ProgressStatus][] = [
   ["ACTIVE", "running"],
+  ["INDETERMINATE", "unknown"],
   ["FAILED", "error"],
   ["CANCELLED", "cancelled"],
   ["SUCCEEDED", "success"],
