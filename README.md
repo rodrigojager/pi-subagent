@@ -2,7 +2,7 @@
 
 This is Rodrigo's presentation fork of [mystilleef/pi-subagent](https://github.com/mystilleef/pi-subagent), based on upstream 0.12.4. Original authorship, license, process execution, agent definitions, and nested delegation are preserved.
 
-Version **0.13.0-rodrigo.3** keeps delegated work visible and adds an optional durable execution adapter:
+Version **0.13.0-rodrigo.4** keeps delegated work visible and adds an optional durable execution adapter:
 
 - Numbered run labels (`review #1`, `build #2`) replace random adjective/noun nicknames. Numbers increase within each Pi process; job UUIDs remain the cancellation identifiers.
 - The delegated task appears in compact cards, before live tool activity. Expand a live card to read its full normalized task.
@@ -13,7 +13,7 @@ Version **0.13.0-rodrigo.3** keeps delegated work visible and adds an optional d
 
 The mailbox's `/mailbox legacy` and `/mailbox durable` commands select the path for new jobs in the current branch. They do not move or cancel jobs already running. Closing an interface does not cancel a mailbox worker; `/cancel-subagent` remains the explicit cancellation command. Do not reload a Pi session while its current work is active just to activate this version.
 
-On Windows, process-tree cancellation checks the exit code from `taskkill /T /F`. If it fails, termination records the failure and falls back to a direct signal instead of reporting that the tree was killed.
+On Windows, process-tree cancellation starts `taskkill /T /F` asynchronously as soon as cancellation is requested. This also reaches descendants that detached from the child process. If it fails, termination records the failure and falls back to a direct signal instead of reporting that the tree was killed.
 
 ```text
 ⟳ review #1 [running]

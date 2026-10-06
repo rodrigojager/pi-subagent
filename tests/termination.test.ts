@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ChildProcess } from "node:child_process";
+import { fork } from "node:child_process";
 import { EventEmitter } from "node:events";
 import * as terminationModule from "../src/child/termination.js";
 import {
@@ -21,6 +22,58 @@ type FakeChild = EventEmitter & {
   signals: TerminationSignal[];
   kill: (signal?: NodeJS.Signals | number) => boolean;
 };
+
+test.skipIf(process.platform !== "win32")(
+  "Windows tree cancellation ends a detached grandchild",
+  async () => {
+    const parent = fork(
+      new URL("./fixtures/windows-tree-parent.mjs", import.meta.url),
+      [],
+      {
+        windowsHide: true,
+        stdio: ["ignore", "ignore", "ignore", "ipc"],
+      },
+    );
+    let grandchildPid: number | undefined;
+    try {
+      grandchildPid = await new Promise<number>((resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error("Grandchild did not start")),
+          3000,
+        );
+        parent.once("message", (message: unknown) => {
+          clearTimeout(timer);
+          const pid = (message as { grandchildPid?: unknown })?.grandchildPid;
+          typeof pid === "number"
+            ? resolve(pid)
+            : reject(new Error("Invalid grandchild PID"));
+        });
+        parent.once("error", reject);
+      });
+      expect(() => process.kill(grandchildPid as number, 0)).not.toThrow();
+      const cancellation = terminateChildProcess(parent, {
+        tree: true,
+        timeoutMs: 4000,
+      });
+      const metadata = await cancellation;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(() => process.kill(grandchildPid as number, 0)).toThrow();
+      expect(metadata.target).toBe("tree");
+      expect(metadata.processTreeKilled).toBe(true);
+      expect(metadata.terminationSignal).toBe("SIGKILL");
+    } finally {
+      if (parent.exitCode === null) parent.kill("SIGKILL");
+      if (grandchildPid !== undefined) {
+        try {
+          process.kill(grandchildPid, "SIGKILL");
+        } catch {
+          /* already ended */
+        }
+      }
+    }
+  },
+  10000,
+);
 
 function makeChild(overrides: Partial<FakeChild> = {}): FakeChild {
   const child = new EventEmitter() as FakeChild;
@@ -1249,30 +1302,27 @@ describe("terminateChildProcess", () => {
     expect(metadata.escalated).toBe(false);
     expect(metadata.terminationSignal).toBe("SIGTERM");
   });
-  test("runs Windows taskkill command during forceful tree escalation", async () => {
+  test("runs Windows taskkill immediately for a process tree", async () => {
     const child = makeChild({ pid: 321 });
-    const timers = makeTimers();
     const taskkillArgs: string[][] = [];
     const promise = terminateChildProcess(child as unknown as ChildProcess, {
       tree: true,
       platform: "win32",
-      setTimeout: timers.setTimeout,
       runTaskkill(args) {
         taskkillArgs.push(args);
+        return { exitCode: 0 };
       },
     });
-    timers.timers[0]?.();
-    expect(child.signals).toEqual(["SIGTERM"]);
+    await Promise.resolve();
+    expect(child.signals).toEqual([]);
     expect(taskkillArgs).toEqual([["/pid", "321", "/t", "/f"]]);
     child.emit("exit");
     const metadata = await promise;
     expect(metadata.target).toBe("tree");
     expect(metadata.processTreeKilled).toBe(true);
     expect(metadata.terminationSignal).toBe("SIGKILL");
-    expect(metadata.escalated).toBe(true);
-    expect(metadata.fallbackCause).toBe(
-      "unsupported tree termination platform",
-    );
+    expect(metadata.escalated).toBe(false);
+    expect(metadata.fallbackCause).toBeUndefined();
   });
   test("uses injected process tree killer before scheduling escalation", async () => {
     const child = makeChild({ pid: 432 });
@@ -1326,41 +1376,49 @@ describe("terminateChildProcess", () => {
   });
   test("falls back to direct signal when Windows taskkill fails", async () => {
     const child = makeChild({ pid: 654 });
-    const timers = makeTimers();
     const promise = terminateChildProcess(child as unknown as ChildProcess, {
       tree: true,
       platform: "win32",
-      setTimeout: timers.setTimeout,
       runTaskkill() {
         throw new Error("taskkill failed");
       },
     });
-    timers.timers[0]?.();
-    expect(child.signals).toEqual(["SIGTERM", "SIGKILL"]);
     child.emit("exit");
     const metadata = await promise;
+    expect(child.signals).toEqual(["SIGKILL"]);
     expect(metadata.target).toBe("direct");
     expect(metadata.processTreeKilled).toBe(false);
     expect(metadata.fallbackCause).toBe("taskkill failed");
-    expect(metadata.escalated).toBe(true);
+    expect(metadata.escalated).toBe(false);
     expect(metadata.terminationSignal).toBe("SIGKILL");
   });
-  test("win32 SIGTERM tree falls back to direct signal", async () => {
+  test("Windows tree cancellation awaits asynchronous taskkill confirmation", async () => {
     const child = makeChild({ pid: 555 });
+    let complete!: (value: { exitCode: number }) => void;
     const promise = terminateChildProcess(child as unknown as ChildProcess, {
       tree: true,
       platform: "win32",
+      runTaskkill: () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
     });
+    await Promise.resolve();
     child.emit("exit");
+    let resolved = false;
+    void promise.then(() => {
+      resolved = true;
+    });
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+    complete({ exitCode: 0 });
     const metadata = await promise;
-    expect(child.signals).toEqual(["SIGTERM"]);
-    expect(metadata.fallbackCause).toBe(
-      "unsupported tree termination platform",
-    );
-    expect(metadata.target).toBe("direct");
-    expect(metadata.processTreeKilled).toBe(false);
+    expect(child.signals).toEqual([]);
+    expect(metadata.fallbackCause).toBeUndefined();
+    expect(metadata.target).toBe("tree");
+    expect(metadata.processTreeKilled).toBe(true);
     expect(metadata.escalated).toBe(false);
-    expect(metadata.terminationSignal).toBe("SIGTERM");
+    expect(metadata.terminationSignal).toBe("SIGKILL");
   });
   test("settles via signalCode when exitCode is null", async () => {
     const child = makeChild();
@@ -1439,21 +1497,17 @@ describe("terminateChildProcess", () => {
   });
   test("falls back when Windows taskkill exits nonzero", async () => {
     const child = makeChild({ pid: 99999 });
-    const timers = makeTimers();
     const promise = terminateChildProcess(child as unknown as ChildProcess, {
       tree: true,
       platform: "win32",
-      setTimeout: timers.setTimeout,
       runTaskkill() {
         return { exitCode: 1 };
       },
     });
-    expect(child.signals).toEqual(["SIGTERM"]);
-    timers.timers[0]?.();
-    expect(child.signals).toEqual(["SIGTERM", "SIGKILL"]);
     child.emit("exit");
     const metadata = await promise;
-    expect(metadata.escalated).toBe(true);
+    expect(child.signals).toEqual(["SIGKILL"]);
+    expect(metadata.escalated).toBe(false);
     expect(metadata.fallbackCause).toBe("taskkill exited with code 1");
     expect(metadata.target).toBe("direct");
     expect(metadata.processTreeKilled).toBe(false);

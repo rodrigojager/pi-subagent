@@ -51,6 +51,7 @@ type TimerHandle = unknown;
 type TerminationState = {
   metadata: TerminationMetadata;
   promise: Promise<TerminationMetadata>;
+  resultPromise?: Promise<TerminationMetadata>;
   settled: boolean;
   timer?: TimerHandle;
   clearTimeout: (timer: TimerHandle) => void;
@@ -73,7 +74,7 @@ export type TerminateChildProcessOptions = {
     platform: NodeJS.Platform,
   ) => unknown;
   killProcessGroup?: (pid: number, signal: TerminationSignal) => unknown;
-  runTaskkill?: (args: string[]) => unknown;
+  runTaskkill?: (args: string[]) => unknown | Promise<unknown>;
 };
 
 const DEFAULT_TIMEOUT_MS = 4_000;
@@ -458,21 +459,6 @@ function sendTreeSignal(
     markTreeKilled();
     return;
   }
-  if (signal === "SIGKILL") {
-    const result = (
-      options.runTaskkill ?? ((args) => Bun.spawnSync(["taskkill", ...args]))
-    )(["/pid", String(pid), "/t", "/f"]);
-    if (
-      result &&
-      typeof result === "object" &&
-      "exitCode" in result &&
-      result.exitCode !== 0
-    ) {
-      throw new Error(`taskkill exited with code ${String(result.exitCode)}`);
-    }
-    markTreeKilled();
-    return;
-  }
   throw new Error("unsupported tree termination platform");
 }
 
@@ -500,20 +486,93 @@ function sendTerminationSignal(
   }
 }
 
+function runTaskkillAsync(
+  args: string[],
+  timeoutMs: number,
+): Promise<{ exitCode: number | null }> {
+  return new Promise((resolve, reject) => {
+    const helper = spawn("taskkill", args, {
+      windowsHide: true,
+      stdio: "ignore",
+    });
+    const timer = setTimeout(() => {
+      helper.kill();
+      reject(new Error("taskkill timed out"));
+    }, timeoutMs);
+    helper.once("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    helper.once("exit", (code) => {
+      clearTimeout(timer);
+      resolve({ exitCode: code });
+    });
+  });
+}
+
+function terminateWindowsTree(
+  proc: ChildProcess & { pid: number },
+  state: TerminationState,
+  options: TerminateChildProcessOptions,
+): Promise<void> {
+  const args = ["/pid", String(proc.pid), "/t", "/f"];
+  state.metadata.terminationSignal = "SIGKILL";
+  const runner =
+    options.runTaskkill ??
+    ((nextArgs: string[]) =>
+      runTaskkillAsync(nextArgs, options.timeoutMs ?? DEFAULT_TIMEOUT_MS));
+  return Promise.resolve()
+    .then(() => runner(args))
+    .then((result) => {
+      if (
+        result &&
+        typeof result === "object" &&
+        "exitCode" in result &&
+        result.exitCode !== 0
+      ) {
+        throw new Error(`taskkill exited with code ${String(result.exitCode)}`);
+      }
+      state.metadata.target = "tree";
+      state.metadata.processTreeKilled = true;
+    })
+    .catch((error: unknown) => {
+      state.metadata.fallbackCause =
+        error instanceof Error ? error.message : "tree termination failed";
+      if (!childHasExited(proc)) {
+        try {
+          sendDirectSignal(proc, "SIGKILL", state, options);
+        } catch {
+          settleState(state);
+        }
+      }
+    });
+}
+
 export function terminateChildProcess(
   proc: ChildProcess,
   options: TerminateChildProcessOptions = {},
 ): Promise<TerminationMetadata> {
   const existing = terminationStates.get(proc);
-  if (existing) return existing.promise;
+  if (existing) return existing.resultPromise ?? existing.promise;
   const state = makeState(proc, options);
   terminationStates.set(proc, state);
   if (childHasExited(proc) || !hasPid(proc)) {
     settleState(state);
     return state.promise;
   }
-  sendTerminationSignal(proc, "SIGTERM", state, options);
-  if (!state.settled) {
+  const windowsTree =
+    options.tree &&
+    (options.platform ?? process.platform) === "win32" &&
+    !options.killProcessTree;
+  if (windowsTree) {
+    const operation = terminateWindowsTree(proc, state, options);
+    state.resultPromise = Promise.all([state.promise, operation]).then(
+      () => state.metadata,
+    );
+  } else {
+    sendTerminationSignal(proc, "SIGTERM", state, options);
+  }
+  if (!state.settled && !windowsTree) {
     const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const setTimer = options.setTimeout ?? setTimeout;
     state.timer = setTimer(() => {
@@ -526,5 +585,5 @@ export function terminateChildProcess(
     }, timeoutMs);
     (state.timer as { unref?: () => void } | undefined)?.unref?.();
   }
-  return state.promise;
+  return state.resultPromise ?? state.promise;
 }
