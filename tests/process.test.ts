@@ -126,6 +126,54 @@ test("runSingleAgent reports unknown agents with available names", async () => {
   );
 });
 
+test("runSingleAgent reports an externally terminated child instead of treating it as a clean exit", async () => {
+  const { cwd } = await setupTest();
+  const scriptPath = path.join(cwd, "external-termination-child.mjs");
+  const pidPath = path.join(cwd, "external-termination-child.pid");
+  fs.writeFileSync(
+    scriptPath,
+    `import { writeFileSync } from "node:fs";\nwriteFileSync(${JSON.stringify(pidPath)}, String(process.pid));\nsetTimeout(() => process.exit(0), 15000);\n`,
+  );
+  const controller = new AbortController();
+  let pid: number | undefined;
+  try {
+    const pending = runSingleAgent(
+      cwd,
+      [hangAgent],
+      "hang",
+      "task",
+      controller.signal,
+      undefined,
+      makeSubagentDetails,
+      undefined,
+      "off",
+      false,
+      { piInvocation: { command: "node", args: [scriptPath] } },
+    );
+    const deadline = Date.now() + 5000;
+    while (!fs.existsSync(pidPath) && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    expect(fs.existsSync(pidPath)).toBe(true);
+    pid = Number(fs.readFileSync(pidPath, "utf8"));
+    process.kill(pid, "SIGKILL");
+    const { result } = await pending;
+    expect(result.exitCode).toBe(1);
+    expect(result.errorMessage).toMatch(
+      /terminated by signal|exited with code/,
+    );
+  } finally {
+    controller.abort();
+    if (pid !== undefined) {
+      try {
+        process.kill(pid, "SIGKILL");
+      } catch {
+        /* already ended */
+      }
+    }
+  }
+});
+
 test("runSingleAgent reports default depth limit with effective max depth", async () => {
   process.env.PI_SUBAGENT_DEPTH = "3";
   const { result } = await runSingleAgent(

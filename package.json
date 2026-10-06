@@ -1,6 +1,6 @@
 {
   "name": "@mystilleef/pi-subagent",
-  "version": "0.13.0-rodrigo.4",
+  "version": "0.13.0-rodrigo.5",
   "description": "Pi subagents with numbered runs and task-first progress cards, based on the SPAE extension",
   "author": "Lateef Alabi-Oki <mystilleef@gmail.com>",
   "license": "MIT",

@@ -255,6 +255,22 @@ async function finalizeResult(
   if (agentEndTimeoutExitCode !== undefined) {
     state.result.exitCode = agentEndTimeoutExitCode;
   }
+  if (
+    state.observedChildSignal &&
+    !state.wasAborted &&
+    state.result.termination?.cancelReason !== "agent_end_timeout"
+  ) {
+    state.result.exitCode = 1;
+    state.result.errorMessage ||= `Subagent process terminated by signal ${state.observedChildSignal}`;
+  } else if (
+    !state.wasAborted &&
+    state.result.exitCode !== 0 &&
+    !state.result.errorMessage?.trim() &&
+    !state.result.stderr.trim() &&
+    state.result.termination?.cancelReason !== "agent_end_timeout"
+  ) {
+    state.result.errorMessage = `Subagent process exited with code ${state.result.exitCode}`;
+  }
   if (state.result.termination?.cancelReason === "agent_end_timeout") {
     state.result.stderr = state.result.stderr.replace(/^Terminated\r?\n/gm, "");
   }
@@ -469,7 +485,9 @@ export async function runSingleAgent(
           )
         : Promise.resolve(undefined);
     try {
-      state.result.exitCode = (await processDone) ?? 0;
+      const exitCode = await processDone;
+      state.observedChildSignal = proc.signalCode ?? undefined;
+      state.result.exitCode = exitCode ?? 1;
       return await finalizeResult(state, startedAt);
     } finally {
       clearGraceTimer(state);

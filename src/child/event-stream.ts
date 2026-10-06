@@ -28,6 +28,7 @@ export interface SubagentState {
   result: RuntimeResult;
   runtimeLimits: RuntimeLimits;
   spawnError?: Error;
+  observedChildSignal?: NodeJS.Signals | undefined;
   wasAborted: boolean;
   agentEndGraceTimer?: ReturnType<typeof setTimeout>;
   terminationPromise?: Promise<unknown>;
