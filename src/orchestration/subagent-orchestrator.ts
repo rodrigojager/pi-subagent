@@ -64,6 +64,7 @@ import type {
 } from "../shared/types.js";
 import { hasSubagentFailed } from "../shared/utils.js";
 import { sendCompletionMessage } from "./completion-delivery.js";
+import { formatHandoffTask } from "./handoff-task.js";
 import {
   listRunJobs,
   type RunJob,
@@ -89,7 +90,20 @@ export const SubagentParams = Type.Object({
   }),
   task: Type.Optional(
     Type.String({
-      description: "Task to delegate. Optional for agents with defaults.",
+      description:
+        "Readable task to delegate. With ticketPath, use only for supplemental instructions; preserve normal spaces between words. Optional for agents with defaults.",
+    }),
+  ),
+  ticketPath: Type.Optional(
+    Type.String({
+      description:
+        "Absolute path to the saved ticket. The child reads the full ticket; prefer this over restating its contents in task.",
+    }),
+  ),
+  worktreePath: Type.Optional(
+    Type.String({
+      description:
+        "Absolute worktree path for the child to use. Omit when the current working directory is correct.",
     }),
   ),
   agentScope: Type.Optional(AgentScopeSchema),
@@ -448,7 +462,7 @@ async function prepareSubagentJob(
   const requested = agents.find((a) => a.name === params.agent);
   if (!requested) return { kind: "not_found", makeDetails };
   if (hostSignal?.aborted) return { kind: "cancelled", makeDetails };
-  const task = params.task?.trim() ?? "";
+  const task = formatHandoffTask(params);
   if (needsProjectAgentConfirmation(ctx, requested)) {
     const confirmed = await confirmProjectAgentRun(
       ctx,

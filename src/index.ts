@@ -105,10 +105,12 @@ export default function registerSubagentExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "subagent",
     label: "Subagent",
-    description: "Delegate a task to a subagent with isolated context.",
+    description:
+      "Delegate a task or saved ticket to a subagent with isolated context.",
     promptGuidelines: [
       "Write task handoffs as readable sentences with normal spaces between words. Concision means omitting redundant content, never joining words or labels to save tokens (write 'BUG CONCRETO', 'pointer observação', 'base b1777b3').",
       "Preserve exact code identifiers, paths and commit hashes. The task is shown in the UI and passed to the child as written; presentation does not repair missing spaces. Prefer a ticket path and only necessary supplemental instructions.",
+      "For saved tickets, pass ticketPath and optional worktreePath as separate fields. Omit task unless you have supplemental instructions absent from the ticket; do not compress ticket prose into one string.",
     ],
     parameters: SubagentParams,
     async execute(_toolCallId, params, signal, onUpdate, ctx) {

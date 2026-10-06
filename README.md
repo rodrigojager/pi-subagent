@@ -264,7 +264,15 @@ delegation.
 **Inputs:**
 
 - `agent`: agent name.
-- `task`: task prompt for the child agent.
+- `task`: readable freeform task prompt; when `ticketPath` is set, only
+  supplemental instructions absent from the ticket. Existing calls work
+  unchanged.
+- `ticketPath`: optional saved ticket path. The extension builds a short,
+  labeled child prompt that tells the agent to read the complete ticket,
+  avoiding a compressed restatement in the tool call.
+- `worktreePath`: optional worktree path to include as a separate labeled
+  line in the child prompt. The child still receives the parent working
+  directory unless the task directs it to change directories.
 - `agentScope`: optional lookup scope, one of `user`, `project`, or
   `both`.
 - `debug`: optional flag that requests child diagnostic details. Full

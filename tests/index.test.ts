@@ -218,7 +218,7 @@ describe("index.ts", () => {
       const { tool } = await setupTest();
       expect(tool.name).toBe("subagent");
       expect(tool.description).toBe(
-        "Delegate a task to a subagent with isolated context.",
+        "Delegate a task or saved ticket to a subagent with isolated context.",
       );
     });
 
