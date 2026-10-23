@@ -20,6 +20,8 @@ Plain Markdown also works. The filename determines the ID; an optional metadata 
 
 The extension includes Agency Agents roles as bundled data. Existing user and trusted project roles keep precedence over bundled roles with the same ID.
 
+Three additional [custom specialist roles](custom-roles.md) are bundled and appear alongside Agency Agents roles: `root-cause-debugger`, `local-environment-setup`, and `technical-knowledge-base-curator`. They are separate, custom-authored roles, not part of the upstream Agency Agents library.
+
 ## Invocation choices
 
 | Invocation role | Effective role |
@@ -86,6 +88,8 @@ Agency Agents is MIT licensed; every import preserves its actual LICENSE and att
 
 ## Complete Agency Agents source snapshot
 
-The complete upstream repository is preserved in [`vendor/agency-agents`](../vendor/agency-agents/), including its 329 Markdown files and original `LICENSE`. The same specialist roles are read directly from this snapshot and appear in `/roles`, `/role`, the role picker, and the read-only `roles` tool after installation. The snapshot is upstream revision `4e3ac3ca6604c75113f52c695dbddcc7af928b46` from 2026-10-19; provenance and attribution are recorded in [`vendor/README.md`](../vendor/README.md).
+The complete upstream repository is preserved in [`vendor/agency-agents`](../vendor/agency-agents/), including its 329 Markdown files and original `LICENSE`. Its 282 specialist roles and the three additional custom roles are discovered at runtime and appear in `/roles`, `/role`, the role picker, and the read-only `roles` tool after installation. The snapshot is upstream revision `4e3ac3ca6604c75113f52c695dbddcc7af928b46` from 2026-10-19; provenance and attribution are recorded in [`vendor/README.md`](../vendor/README.md).
 
 Interpretation clarification (2026-10-23): the importer excludes strategy documents, examples, integrations, and repository documentation from the Pi role catalog. That filter does not mean those source materials should be omitted from this repository. They are now retained in the complete upstream snapshot; only recognized specialist-role files are imported into Pi as roles.
+
+The upstream `strategy/playbooks` documents describe phase-based, multi-role workflows: prerequisites, agent activation waves, handoffs, deliverables, and quality gates. They are workflow or skill-bundle material, not additional role definitions. The current `4e3ac3c` update changed no files under `strategy/playbooks`; retain them as source reference and extract tool-specific or repeatable procedures into separate Pi skills when adopting them.

@@ -189,19 +189,22 @@ export async function discoverRoles(options: {
   allowProject?: boolean;
 }): Promise<RoleCatalog> {
   const userRoot = path.join(options.agentDir ?? getAgentDir(), "roles");
-  const bundledRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../vendor/agency-agents");
+  const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const bundledRoot = path.join(packageRoot, "vendor/agency-agents");
+  const customBundledRoot = path.join(packageRoot, "roles/custom");
   const projectRoot = options.allowProject
     ? await nearestRolesRoot(options.cwd)
     : undefined;
   const diagnostics: string[] = [];
-  const [bundled, user, project] = await Promise.all([
+  const [bundled, bundledCustom, user, project] = await Promise.all([
     scan(bundledRoot, "bundled", diagnostics, true),
+    scan(customBundledRoot, "bundled", diagnostics),
     scan(userRoot, "user", diagnostics),
     projectRoot
       ? scan(projectRoot, "project", diagnostics)
       : new Map<string, RoleDocument | "invalid" | "unreadable">(),
   ]);
-  const merged = new Map([...bundled, ...user, ...project]);
+  const merged = new Map([...bundled, ...bundledCustom, ...user, ...project]);
   const roles: RoleDocument[] = [];
   const rejected: RoleCatalog["rejected"] = new Map();
   for (const [id, entry] of merged) {

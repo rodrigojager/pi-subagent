@@ -1,6 +1,6 @@
 {
   "name": "@mystilleef/pi-subagent",
-  "version": "0.13.0-rodrigo.7",
+  "version": "0.13.0-rodrigo.8",
   "description": "Pi subagents with numbered runs and task-first progress cards, based on the SPAE extension",
   "author": "Lateef Alabi-Oki <mystilleef@gmail.com>",
   "license": "MIT",
@@ -41,7 +41,9 @@
     "scripts/import-agency-roles.ts",
     "docs/roles.md",
     "docs/roles-migration.md",
+    "docs/custom-roles.md",
     "vendor/agency-agents",
+    "roles/custom",
     "skills"
   ],
   "pi": {
