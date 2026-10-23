@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import type { Dirent } from "node:fs";
 import { readdir, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
@@ -74,6 +75,7 @@ async function scan(
   root: string,
   source: RoleDocument["source"],
   diagnostics: string[],
+  agencyAgents = false,
 ) {
   const entries = new Map<string, RoleDocument | "invalid" | "unreadable">();
   const duplicates = new Set<string>();
@@ -94,11 +96,29 @@ async function scan(
     for (const entry of files.sort((a, b) => a.name.localeCompare(b.name))) {
       const file = path.join(dir, entry.name);
       if (entry.isDirectory()) {
+        if (
+          agencyAgents &&
+          ((dir === canonicalRoot && !AGENCY_CATEGORIES.has(entry.name)) ||
+            /translations|examples|integrations|scripts|runbooks/i.test(entry.name))
+        )
+          continue;
         await walk(file);
         continue;
       }
       if (!entry.name.endsWith(".md")) continue;
-      const id = path.basename(entry.name, ".md");
+      const relativePath = path.relative(canonicalRoot, file).split(path.sep).join("/");
+      let id = path.basename(entry.name, ".md");
+      if (agencyAgents) {
+        const category = relativePath.split("/")[0];
+        const filename = path.basename(entry.name, ".md");
+        if (
+          !category ||
+          !AGENCY_CATEGORIES.has(category) ||
+          !/^[a-z0-9][a-z0-9._-]*\.md$/.test(entry.name) ||
+          /^(readme|license|contributing)|(?:^|[-_.])(zh|cn|ja|ko)(?:[-_.]|$)/i.test(entry.name)
+        ) continue;
+        id = filename.startsWith(`${category}-`) ? filename.slice(category.length + 1) : filename;
+      }
       if (!isRoleId(id)) {
         diagnostics.push(`${file}: invalid filename ID`);
         continue;
@@ -116,7 +136,32 @@ async function scan(
           throw new Error("Role link leaves scope root");
         const content = await readFile(file, "utf8");
         try {
-          entries.set(id, parseRoleDocument(content, file, source));
+          if (agencyAgents) {
+            let parsed: ReturnType<
+              typeof parseFrontmatter<Record<string, unknown>>
+            >;
+            try {
+              parsed = parseFrontmatter<Record<string, unknown>>(content);
+            } catch {
+              continue;
+            }
+            const frontmatter = parsed.frontmatter;
+            if (
+              typeof frontmatter["name"] !== "string" ||
+              !frontmatter["name"].trim() ||
+              typeof frontmatter["description"] !== "string" ||
+              !frontmatter["description"].trim() ||
+              !parsed.body.trim()
+            )
+              continue;
+          }
+          const role = parseRoleDocument(content, file, source);
+          entries.set(id, agencyAgents ? {
+            ...role,
+            category: relativePath.split("/")[0] ?? "",
+            sourceRevision: AGENCY_REVISION,
+            sourceUrl: `https://github.com/msitarzewski/agency-agents/blob/${AGENCY_REVISION}/${relativePath}`,
+          } : role);
         } catch (error) {
           entries.set(id, "invalid");
           diagnostics.push(`${file}: ${String(error)}`);
@@ -131,6 +176,12 @@ async function scan(
   for (const id of duplicates) entries.set(id, "invalid");
   return entries;
 }
+const AGENCY_REVISION = "4e3ac3ca6604c75113f52c695dbddcc7af928b46";
+const AGENCY_CATEGORIES = new Set([
+  "academic", "design", "engineering", "finance", "game-development", "gis",
+  "healthcare", "marketing", "paid-media", "product", "project-management",
+  "research", "sales", "security", "spatial-computing", "specialized", "support", "testing",
+]);
 /** Fresh filesystem snapshots avoid cross-workspace/trust cache leakage. No network. */
 export async function discoverRoles(options: {
   cwd: string;
@@ -138,17 +189,19 @@ export async function discoverRoles(options: {
   allowProject?: boolean;
 }): Promise<RoleCatalog> {
   const userRoot = path.join(options.agentDir ?? getAgentDir(), "roles");
+  const bundledRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../vendor/agency-agents");
   const projectRoot = options.allowProject
     ? await nearestRolesRoot(options.cwd)
     : undefined;
   const diagnostics: string[] = [];
-  const [user, project] = await Promise.all([
+  const [bundled, user, project] = await Promise.all([
+    scan(bundledRoot, "bundled", diagnostics, true),
     scan(userRoot, "user", diagnostics),
     projectRoot
       ? scan(projectRoot, "project", diagnostics)
       : new Map<string, RoleDocument | "invalid" | "unreadable">(),
   ]);
-  const merged = new Map([...user, ...project]);
+  const merged = new Map([...bundled, ...user, ...project]);
   const roles: RoleDocument[] = [];
   const rejected: RoleCatalog["rejected"] = new Map();
   for (const [id, entry] of merged) {

@@ -20,10 +20,9 @@ const requiredFiles = [
   "scripts/import-agency-roles.ts",
   "docs/roles.md",
   "docs/roles-migration.md",
-  "docs/custom-roles.md",
-  "roles/custom/root-cause-debugger.md",
-  "roles/custom/local-environment-setup.md",
-  "roles/custom/technical-knowledge-base-curator.md",
+  "vendor/agency-agents/README.md",
+  "vendor/agency-agents/LICENSE",
+  "vendor/agency-agents/engineering/engineering-backend-architect.md",
   "skills/pi-subagent-usage/SKILL.md",
 ];
 const forbiddenPatterns = [
@@ -84,5 +83,12 @@ const packedFiles = (pack.files ?? [])
 const packedFileSet = new Set(packedFiles);
 assertNoMissing(packedFileSet, requiredFiles, "Required files");
 assertNoMissing(packedFileSet, sourceFiles(join(root, "src")), "Source files");
+assertNoMissing(
+  packedFileSet,
+  sourceFiles(join(root, "vendor", "agency-agents")).filter(
+    (file) => file !== "vendor/agency-agents/.gitignore",
+  ),
+  "Vendored Agency Agents source",
+);
 assertNoForbidden(packedFiles);
 console.log(`npm pack dry-run passed (${packedFiles.length} files)`);

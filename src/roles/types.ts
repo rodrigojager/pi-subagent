@@ -9,7 +9,7 @@ export interface RoleMetadata {
   readonly requestedId?: string | undefined;
   readonly effectiveId?: string | undefined;
   readonly displayName?: string | undefined;
-  readonly source?: "project" | "user" | undefined;
+  readonly source?: "bundled" | "project" | "user" | undefined;
   readonly sourceRevision?: string | undefined;
   readonly contentHash?: string | undefined;
   readonly status: "resolved" | "none" | "missing" | "invalid" | "unreadable";
@@ -23,7 +23,7 @@ export interface RoleDocument {
   name: string;
   description: string;
   category: string;
-  source: "project" | "user";
+  source: "bundled" | "project" | "user";
   sourcePath: string;
   sourceRevision?: string | undefined;
   sourceUrl?: string | undefined;

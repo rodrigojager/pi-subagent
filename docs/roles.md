@@ -18,7 +18,7 @@ Consider failure modes and data consistency. Keep changes proportional to the ta
 
 Plain Markdown also works. The filename determines the ID; an optional metadata `id` must agree. `default` and `none` are reserved selection modes. Only the body enters the model prompt. Unsupported execution configuration in role metadata has no effect.
 
-Three optional [custom specialist roles](custom-roles.md) cover unexplained software failures, local environment setup, and technical troubleshooting knowledge. Their metadata and instructions distinguish them from overlapping Agency Agents roles. They are bundled as data and installed explicitly into a role catalog; no agent defaults or skills are changed.
+The extension includes Agency Agents roles as bundled data. Existing user and trusted project roles keep precedence over bundled roles with the same ID.
 
 ## Invocation choices
 
@@ -78,8 +78,14 @@ bun run roles:import -- --scope user --all --update
 
 Without `--source`, an explicit importer invocation clones the source to `getAgentDir()/role-sources/agency-agents` if absent. `--update` fetches and fast-forwards that cache. Fetch failure occurs before catalog writes. Supplying `--source` never fetches, so an existing checkout supports offline updates. Dry-run requires an existing checkout and performs no writes/network.
 
-Only recognized specialist category directories with agent name/description metadata are imported; docs, strategy, translations, examples, scripts, and integrations are excluded. Bodies retain their original English text. Category prefixes are removed deterministically. `--map <JSON-file>` supplies stable source-path-to-ID mappings if IDs collide. Collisions and invalid input fail before role writes.
+Only recognized specialist category directories with agent name/description metadata appear as Pi roles; docs, strategy, translations, examples, scripts, and integrations remain available in the complete source snapshot but are not listed as roles. Bodies retain their original English text. Category prefixes are removed deterministically. `--map <JSON-file>` supplies stable source-path-to-ID mappings if IDs collide. Collisions and invalid input fail before role writes.
 
 Provenance, hashes, exact upstream revision, mappings, LICENSE, backups, and proposed conflicts live under `role-sources/agency-agents`, outside the catalog. Repeating an import is idempotent. `--update` replaces unedited managed files atomically. Custom/edited files are conflicts and remain intact; proposed replacements are written outside the catalog. `--resolve keep` preserves without proposals; `--resolve replace` explicitly replaces same-destination conflicts while backing up their text. A different local path with the same ID remains a conflict. Upstream removals never delete local files. The summary reports imported, updated, unchanged, conflicts, skipped, and failed counts.
 
 Agency Agents is MIT licensed; every import preserves its actual LICENSE and attribution. See [Agency Agents](https://github.com/msitarzewski/agency-agents) and its [license](https://github.com/msitarzewski/agency-agents/blob/main/LICENSE).
+
+## Complete Agency Agents source snapshot
+
+The complete upstream repository is preserved in [`vendor/agency-agents`](../vendor/agency-agents/), including its 329 Markdown files and original `LICENSE`. The same specialist roles are read directly from this snapshot and appear in `/roles`, `/role`, the role picker, and the read-only `roles` tool after installation. The snapshot is upstream revision `4e3ac3ca6604c75113f52c695dbddcc7af928b46` from 2026-10-19; provenance and attribution are recorded in [`vendor/README.md`](../vendor/README.md).
+
+Interpretation clarification (2026-10-23): the importer excludes strategy documents, examples, integrations, and repository documentation from the Pi role catalog. That filter does not mean those source materials should be omitted from this repository. They are now retained in the complete upstream snapshot; only recognized specialist-role files are imported into Pi as roles.
