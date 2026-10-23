@@ -158,6 +158,7 @@ async function scan(
           const role = parseRoleDocument(content, file, source);
           entries.set(id, agencyAgents ? {
             ...role,
+            id,
             category: relativePath.split("/")[0] ?? "",
             sourceRevision: AGENCY_REVISION,
             sourceUrl: `https://github.com/msitarzewski/agency-agents/blob/${AGENCY_REVISION}/${relativePath}`,
